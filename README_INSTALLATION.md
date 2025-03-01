@@ -1,26 +1,8 @@
-## Usage
-
-After installation, you can run PatchCommander using the command:
-
-```bash
-pcmd
-```
-
-This will use clipboard content by default. To process a file:
-
-```bash
-pcmd path/to/input_file.txt
-```
-
-For more options:
-
-```bash
-pcmd --help
-```## Installation
+## Installation
 
 You can install PatchCommander in several ways:
 
-### Option 1: Using pip
+### Option 1: Using pip (recommended)
 
 ```bash
 pip install patchcommander
@@ -38,11 +20,7 @@ pipx install patchcommander
 uv install patchcommander
 ```
 
-### Option 4: Pre-built Executables
-
-Pre-built executables for Windows, macOS, and Linux are available on the [Releases](https://github.com/jacekjursza/PatchCommander/releases) page.
-
-### Option 5: From source
+### Option 4: From source
 
 ```bash
 # Clone the repository
@@ -54,6 +32,23 @@ cd PatchCommander
 # Install dependencies
 pip install -r requirements.txt
 
-# Build and install
-pip install .
+# Install in development mode
+pip install -e .
 ```
+
+## Usage
+
+After installation, you can run PatchCommander using the shorter command:
+
+```bash
+# Process clipboard content
+pcmd
+
+# Process a file
+pcmd path/to/input_file.txt
+
+# Show all options
+pcmd --help
+```
+
+The legacy command `patchcommander` is also available but `pcmd` is recommended.

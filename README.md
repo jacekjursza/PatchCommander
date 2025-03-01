@@ -23,6 +23,26 @@ This creates a seamless workflow between AI code suggestions and practical imple
 
 ## Installation
 
+### Option 1: Using pip (recommended)
+
+```bash
+pip install patchcommander
+```
+
+### Option 2: Using pipx (recommended for command-line tools)
+
+```bash
+pipx install patchcommander
+```
+
+### Option 3: Using uv
+
+```bash
+uv install patchcommander
+```
+
+### Option 4: From source
+
 ```bash
 # Clone the repository
 git clone https://github.com/jacekjursza/PatchCommander.git
@@ -32,6 +52,9 @@ cd PatchCommander
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Install in development mode
+pip install -e .
 ```
 
 ## Dependencies
@@ -42,13 +65,20 @@ pip install -r requirements.txt
 
 ## Usage
 
-```bash
-# Run with input from a file
-python main.py path/to/input_file.txt
+After installation, you can use PatchCommander with the shorter command:
 
+```bash
 # Run with input from clipboard (no arguments)
-python main.py
+pcmd
+
+# Run with input from a file
+pcmd path/to/input_file.txt
+
+# Show help
+pcmd --help
 ```
+
+The legacy command `patchcommander` is also available but `pcmd` is recommended.
 
 ## Tag Syntax for LLMs
 
@@ -115,7 +145,7 @@ Perform file operations:
 
 1. **Prompt the LLM**: Ask your LLM to implement a feature or fix a bug, instructing it to format changes using PatchCommander's tag syntax
 2. **Copy the output**: Save the LLM's response with the tagged code changes to a file or clipboard
-3. **Run PatchCommander**: Process the changes using `python main.py [filename]` or just `python main.py` for clipboard content
+3. **Run PatchCommander**: Process the changes using `pcmd [filename]` or just `pcmd` for clipboard content
 4. **Review the changes**: Examine the diffs for each proposed change
 5. **Confirm or reject**: Choose which changes to apply
 6. **Apply changes**: All confirmed changes are applied at once at the end of the process
