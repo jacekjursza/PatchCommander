@@ -6,7 +6,7 @@ from rich import print as rprint
 from rich.panel import Panel
 from rich.table import Table
 console = Console()
-VERSION = '1.0.1'
+VERSION = '1.0.2'
 
 def print_banner():
     """
