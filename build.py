@@ -55,9 +55,21 @@ def build_executable():
     if os.path.exists("build"):
         print("Removing previous build directory...")
         shutil.rmtree("build")
+
+    # Only remove executable files from dist, preserve package distribution files
     if os.path.exists("dist"):
-        print("Removing previous dist directory...")
-        shutil.rmtree("dist")
+        print("Cleaning executable files from dist directory...")
+        executable_files = []
+        for file in os.listdir("dist"):
+            # Keep .whl and .tar.gz files (Python package distributions)
+            if not file.endswith('.whl') and not file.endswith('.tar.gz'):
+                file_path = os.path.join("dist", file)
+                if os.path.isfile(file_path):
+                    executable_files.append(file_path)
+
+        for file_path in executable_files:
+            print(f"Removing {file_path}...")
+            os.remove(file_path)
 
     # Install required packages
     print("Installing required packages...")

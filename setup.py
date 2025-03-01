@@ -26,15 +26,15 @@ setup(
     url="https://github.com/jacekjursza/PatchCommander",
     packages=find_packages(),
     py_modules=["main", "utils", "preprocessor", "processing", "apply_changes",
-                "confirmations", "line_normalizer", "config", "vcs_integration"],
+                "confirmations", "line_normalizer", "config", "vcs_integration", "__init__"],
     install_requires=[
         "rich",
         "pyperclip",
     ],
     entry_points={
         "console_scripts": [
-            "pcmd=__init__:cli",
-            "patchcommander=__init__:cli_legacy",
+            "pcmd=main:main",
+            "patchcommander=main:main",
         ],
     },
     classifiers=[

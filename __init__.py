@@ -28,26 +28,5 @@ def _get_version():
 
 __version__ = _get_version()
 
-# CLI entry points
-def cli():
-    """Entry point for command-line interface."""
-    from main import main
-    sys.exit(main())
-
-def cli_legacy():
-    """Legacy entry point for backward compatibility."""
-    import warnings
-    warnings.warn(
-        "The 'patchcommander' command is deprecated and will be removed in a future version. "
-        "Please use 'pcmd' instead.",
-        DeprecationWarning,
-        stacklevel=2
-    )
-    from main import main
-    sys.exit(main())
-
 # Make main functionality available directly from module
 from main import main
-
-if __name__ == "__main__":
-    cli()
