@@ -37,3 +37,6 @@ patchcommander = "main:main"
 [tool.setuptools]
 py-modules = ["main", "utils", "preprocessor", "processing", "apply_changes",
                "confirmations", "line_normalizer", "config", "vcs_integration"]
+
+[tool.setuptools.package-data]
+patchcommander = ["PROMPT.md", "FOR_LLM.md"]

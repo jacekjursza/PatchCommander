@@ -57,7 +57,6 @@ def confirm_simple_action(message):
     return answer.lower() == 'y'
 
 def generate_side_by_side_diff(old_lines, new_lines, file_path):
-    from rich.columns import Columns
     from rich.table import Table
     from rich.text import Text
     import difflib

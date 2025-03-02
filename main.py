@@ -6,7 +6,7 @@ from rich import print as rprint
 from rich.panel import Panel
 from rich.table import Table
 console = Console()
-VERSION = '1.0.2'
+VERSION = '1.0.3'
 
 def print_banner():
     """
@@ -40,6 +40,10 @@ def print_config(config):
     console.print(table)
 
 def main():
+    from utils import display_llm_docs
+    from line_normalizer import normalize_line_endings
+    from config import config
+
     parser = argparse.ArgumentParser(description='Process code fragments marked with tags for AI-assisted development.', formatter_class=argparse.RawDescriptionHelpFormatter, epilog='\nExamples:\n  python main.py input.txt             # Process tags from input.txt\n  python main.py                       # Process tags from clipboard\n  python main.py --normalize-only file.txt  # Only normalize line endings\n  python main.py --config              # Show current configuration\n  python main.py --set backup_enabled False  # Change a configuration value\n  python main.py --diagnose            # Only diagnose paths without applying changes\n')
     parser.add_argument('input_file', nargs='?', help='Path to file with tags. If not provided, clipboard content will be used.')
     parser.add_argument('--normalize-only', action='store_true', help='Only normalize line endings in the specified file')
@@ -49,9 +53,10 @@ def main():
     parser.add_argument('--reset-config', action='store_true', help='Reset configuration to defaults')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode with extra logging')
     parser.add_argument('--diagnose', action='store_true', help='Only diagnose paths without applying changes')
+    parser.add_argument('--prompt', action='store_true', help='Display full prompt with instructions for LLMs (PROMPT.md + FOR_LLM.md)')
+    parser.add_argument('--syntax', action='store_true', help='Display PatchCommander tag syntax guide for LLMs (FOR_LLM.md)')
     args = parser.parse_args()
-    from line_normalizer import normalize_line_endings
-    from config import config
+
     if args.version:
         print_banner()
         return 0
@@ -74,12 +79,23 @@ def main():
         else:
             console.print(f'[red]Unknown configuration key: {key}[/red]')
         return 0
+
     if args.reset_config:
         config.reset()
         return 0
     if args.debug:
         config.set('debug_mode', True)
+    if args.prompt:
+        print_banner()
+        display_llm_docs(include_prompt=True)
+        return 0
+    if args.syntax:
+        print_banner()
+        display_llm_docs(include_prompt=False)
+        return 0
+
     print_banner()
+
     try:
         if args.normalize_only and args.input_file:
             if not os.path.exists(args.input_file):
@@ -94,7 +110,7 @@ def main():
             return 0
         from utils import get_input_data
         from preprocessor import run_preprocess
-        from processing import run_process
+        from processing import run_process, diagnose_paths
         from apply_changes import apply_all_pending_changes
         input_data = get_input_data(args.input_file)
         input_data = normalize_line_endings(input_data)
@@ -118,5 +134,6 @@ def main():
         console.print(f'[bold red]Error: {str(e)}[/bold red]')
         return 1
     return 0
+
 if __name__ == '__main__':
     sys.exit(main())
