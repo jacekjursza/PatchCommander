@@ -23,14 +23,13 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/jacekjursza/PatchCommander',
     packages=find_packages(),
-    py_modules=['main', 'utils', 'preprocessor', 'processing', 'apply_changes',
-                'confirmations', 'line_normalizer', 'config', 'vcs_integration', '__init__'],
-    install_requires=['rich', 'pyperclip'],
+    py_modules=['main', 'utils', 'preprocessor', 'processing', 'apply_changes', 'confirmations', 'line_normalizer', 'config', 'vcs_integration'],
+    install_requires=['rich', 'pyperclip', 'parso', 'astunparse'],
     entry_points={
         'console_scripts': [
             'pcmd=main:main',
-            'patchcommander=main:main',
-        ],
+            'patchcommander=main:main'
+        ]
     },
     classifiers=[
         'Programming Language :: Python :: 3',
@@ -38,11 +37,9 @@ setup(
         'Operating System :: OS Independent',
         'Topic :: Software Development :: Code Generators',
         'Topic :: Software Development :: Libraries :: Python Modules',
-        'Intended Audience :: Developers',
+        'Intended Audience :: Developers'
     ],
     python_requires='>=3.8',
-    package_data={
-        '': ['PROMPT.md', 'FOR_LLM.md']
-    },
-    include_package_data=True,
+    package_data={'': ['PROMPT.md', 'FOR_LLM.md']},
+    include_package_data=True
 )
