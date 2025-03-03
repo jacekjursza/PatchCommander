@@ -20,19 +20,20 @@ This creates a seamless workflow between AI code suggestions and practical imple
 - **Diff preview**: View changes before applying them
 - **Syntax validation**: Automatically checks for syntax errors and reverts changes if errors are found
 - **Clipboard support**: Read input directly from clipboard when no file is specified
+- **Multi-language support**: Works with Python and JavaScript files
 
 ## Installation
 
-### Option 1: Using pip (recommended)
-
-```bash
-pip install patchcommander
-```
-
-### Option 2: Using pipx (recommended for command-line tools)
+### Option 1: Using pipx (recommended for command-line tools)
 
 ```bash
 pipx install patchcommander
+```
+
+### Option 2: Using pip 
+
+```bash
+pip install patchcommander
 ```
 
 ### Option 3: Using uv
@@ -61,7 +62,9 @@ pip install -e .
 
 - rich
 - pyperclip
-- ast (standard library)
+- tree-sitter
+- tree-sitter-python
+- tree-sitter-javascript
 
 ## Usage
 
@@ -76,6 +79,12 @@ pcmd path/to/input_file.txt
 
 # Show help
 pcmd --help
+
+# Display LLM instructions and syntax guide
+pcmd --prompt
+
+# Display only the tag syntax guide for LLMs
+pcmd --syntax
 ```
 
 The legacy command `patchcommander` is also available but `pcmd` is recommended.

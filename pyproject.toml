@@ -1,7 +1,7 @@
 [project]
 name = "patchcommander"
-dynamic = ["version"]
-description = "A Python-based tool for streamlining AI-assisted code development"
+version = "1.1.0"
+description = "AI-assisted coding automation tool for streamlined LLM code integration"
 readme = "README.md"
 authors = [
     {name = "jacekjursza", email = "jacek.jursza@gmail.com"}
@@ -15,12 +15,13 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Intended Audience :: Developers",
 ]
-keywords = ["ai", "development", "code-generation", "llm"]
+keywords = ["ai", "development", "code-generation", "llm", "automation"]
 dependencies = [
     "rich",
     "pyperclip",
-    "parso",
-    "astunparse",
+    "tree-sitter",
+    "tree-sitter-python",
+    "tree-sitter-javascript",
 ]
 requires-python = ">=3.8"
 
@@ -29,13 +30,16 @@ requires-python = ">=3.8"
 "Bug Tracker" = "https://github.com/jacekjursza/PatchCommander/issues"
 
 [project.scripts]
-pcmd = "main:main"
-patchcommander = "main:main"
+pcmd = "cli:main"
+patchcommander = "cli:main"
 
 [tool.setuptools]
-py-modules = ["main", "utils", "preprocessor", "processing", "apply_changes",
-               "confirmations", "line_normalizer", "config", "vcs_integration"]
+packages = [
+    "core",
+    "parsers",
+    "operations",
+    "core.tag_processors"
+]
 
 [tool.setuptools.package-data]
 patchcommander = ["PROMPT.md", "FOR_LLM.md"]
-
