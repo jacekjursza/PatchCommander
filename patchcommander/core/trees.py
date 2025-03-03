@@ -3,9 +3,9 @@ Tree implementations for code syntax trees.
 """
 from typing import List, Optional
 from tree_sitter import Tree as TSTree, Query
-from core.interfaces import CodeTree, TreeDiff, Node
-from core.languages import get_parser
-from core.nodes import TreeSitterNode
+from patchcommander.core.interfaces import CodeTree, TreeDiff, Node
+from patchcommander.core.languages import get_parser
+from patchcommander.core.nodes import TreeSitterNode
 
 class TreeSitterCodeTree(CodeTree):
     """Implementation of CodeTree using tree-sitter."""

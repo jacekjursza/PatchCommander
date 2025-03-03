@@ -9,7 +9,7 @@ from rich.syntax import Syntax
 from rich.panel import Panel
 from rich import box
 from rich.table import Table
-from core.config import config
+from patchcommander.core.config import config
 
 console = Console()
 

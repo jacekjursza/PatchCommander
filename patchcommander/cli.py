@@ -9,13 +9,13 @@ import sys
 from rich.table import Table
 
 # Import core modules
-from core.config import config, console
-from core.processors import process_tags
-from core.tag_parser import parse_tags, count_tags_by_type, validate_tag
-from core.text_utils import normalize_line_endings
+from patchcommander.core.config import config, console
+from patchcommander.core.processors import process_tags
+from patchcommander.core.tag_parser import parse_tags, count_tags_by_type, validate_tag
+from patchcommander.core.text_utils import normalize_line_endings
 
 # Constants
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 APP_NAME = "PatchCommander"
 
 def print_banner():
@@ -354,4 +354,5 @@ def main():
     return 0
 
 if __name__ == "__main__":
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     sys.exit(main())

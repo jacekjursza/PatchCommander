@@ -3,8 +3,8 @@ Python language operations.
 """
 from typing import Dict, Any, Optional
 import os
-from operations.base import register_operation, Operation
-from parsers.python_parser import PythonParser
+from patchcommander.operations.base import register_operation, Operation
+from patchcommander.parsers.python_parser import PythonParser
 
 @register_operation('add_method')
 class AddMethodOperation(Operation):

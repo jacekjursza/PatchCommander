@@ -7,7 +7,7 @@ import shutil
 from datetime import datetime
 from typing import Optional
 from rich.console import Console
-from core.config import config
+from patchcommander.core.config import config
 
 console = Console()
 

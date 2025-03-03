@@ -1,12 +1,12 @@
 from typing import Optional
 
-from core.changes import change_manager
-from core.confirmations import confirm_simple_action, confirm_and_apply_change
-from core.languages import get_language_for_file
-from core.console import console
-from core.tag_processors.base import TagProcessor
-from parsers.javascript_parser import JavaScriptParser
-from parsers.python_parser import PythonParser
+from patchcommander.core.changes import change_manager
+from patchcommander.core.confirmations import confirm_simple_action, confirm_and_apply_change
+from patchcommander.core.languages import get_language_for_file
+from patchcommander.core.console import console
+from patchcommander.core.tag_processors.base import TagProcessor
+from patchcommander.parsers.javascript_parser import JavaScriptParser
+from patchcommander.parsers.python_parser import PythonParser
 
 
 class ClassTagProcessor(TagProcessor):

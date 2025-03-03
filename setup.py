@@ -18,8 +18,8 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'pcmd=cli:main',
-            'patchcommander=cli:main'
+            'pcmd=patchcommander.cli:main',
+            'patchcommander=patchcommander.cli:main'
         ]
     },
     include_package_data=True,

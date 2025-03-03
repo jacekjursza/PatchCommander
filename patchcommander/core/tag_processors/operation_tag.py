@@ -1,10 +1,10 @@
 import os
 
-from core.changes import change_manager
-from core.confirmations import confirm_simple_action
-from core.console import console
-from core.tag_processors.base import TagProcessor
-from operations import OperationFactory
+from patchcommander.core.changes import change_manager
+from patchcommander.core.confirmations import confirm_simple_action
+from patchcommander.core.console import console
+from patchcommander.core.tag_processors.base import TagProcessor
+from patchcommander.operations import OperationFactory
 
 
 class OperationTagProcessor(TagProcessor):

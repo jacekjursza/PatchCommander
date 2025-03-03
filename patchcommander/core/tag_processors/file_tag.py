@@ -1,6 +1,6 @@
-from core.changes import change_manager
-from core.confirmations import confirm_and_apply_change
-from core.tag_processors.base import TagProcessor
+from patchcommander.core.changes import change_manager
+from patchcommander.core.confirmations import confirm_and_apply_change
+from patchcommander.core.tag_processors.base import TagProcessor
 
 
 class FileTagProcessor(TagProcessor):

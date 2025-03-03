@@ -4,14 +4,14 @@ Handles processing of different tag types and applying changes.
 """
 from typing import List
 
-from core.console import console
-from core.tag_processors.class_tag import ClassTagProcessor
-from core.tag_processors.file_tag import FileTagProcessor
-from core.tag_processors.function_tag import FunctionTagProcessor
-from core.tag_processors.method_tag import MethodTagProcessor
-from core.tag_processors.operation_tag import OperationTagProcessor
-from core.changes import change_manager
-from core.tag_parser import Tag
+from patchcommander.core.console import console
+from patchcommander.core.tag_processors.class_tag import ClassTagProcessor
+from patchcommander.core.tag_processors.file_tag import FileTagProcessor
+from patchcommander.core.tag_processors.function_tag import FunctionTagProcessor
+from patchcommander.core.tag_processors.method_tag import MethodTagProcessor
+from patchcommander.core.tag_processors.operation_tag import OperationTagProcessor
+from patchcommander.core.changes import change_manager
+from patchcommander.core.tag_parser import Tag
 
 
 def process_tag(tag: Tag) -> bool:

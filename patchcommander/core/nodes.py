@@ -3,7 +3,7 @@ Node implementations for syntax trees.
 """
 from typing import List
 from tree_sitter import Node as TSNode
-from core.interfaces import Node
+from patchcommander.core.interfaces import Node
 
 class TreeSitterNode(Node):
     """Implementation of Node using tree-sitter."""

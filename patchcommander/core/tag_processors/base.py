@@ -1,5 +1,5 @@
-from core.console import console
-from core.tag_parser import Tag
+from patchcommander.core.console import console
+from patchcommander.core.tag_parser import Tag
 
 
 class TagProcessor:
