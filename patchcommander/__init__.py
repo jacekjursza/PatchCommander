@@ -7,7 +7,8 @@ suggestions using PatchCommander's tags, developers can easily and reliably
 apply AI-generated changes across their codebase.
 """
 
-VERSION = '1.1.1'
+VERSION = '1.1.3'
+APP_NAME = 'PatchCommander'
 
 def _get_version():
     """Get the package version."""

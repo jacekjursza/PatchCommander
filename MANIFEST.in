@@ -6,4 +6,4 @@ include requirements.txt
 include pyproject.toml
 include setup.py
 include *.py
-recursive-include tests *.py
+recursive-include patchcommander *.py
