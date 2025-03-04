@@ -61,24 +61,44 @@ class MethodTagProcessor(TagProcessor):
                 if class_start_line == -1:
                     console.print(f"[bold red]Class '{class_name}' not found in file {file_path}[/bold red]")
                     return False
-                in_class = False
+
                 method_indent = class_indent + '    '
+
+                # Find method and any decorators preceding it
                 for i in range(class_start_line, len(lines)):
                     line = lines[i]
                     line_indent = self._get_indentation(line)
+
+                    # Exit if we're outside the class body
                     if i > class_start_line and line.strip() and (len(line_indent) <= len(class_indent)):
                         break
-                    # Look for both regular and async method definitions
+
+                    # Find method definition (with or without async)
                     if re.search(f'{method_indent}(?:async\\s+)?def\\s+{re.escape(method_name)}\\s*\\(', line):
-                        method_start_line = i
+                        # Look backward for decorators
+                        decorator_start_line = i
+                        for j in range(i-1, class_start_line, -1):
+                            decorator_line = lines[j]
+                            decorator_indent = self._get_indentation(decorator_line)
+                            # If we find a decorator with the right indentation, include it
+                            if len(decorator_indent) == len(method_indent) and decorator_line.strip().startswith('@'):
+                                decorator_start_line = j
+                            else:
+                                break
+
+                        method_start_line = decorator_start_line
+
+                        # Find method end
                         for j in range(i + 1, len(lines)):
                             next_line = lines[j]
                             next_line_indent = self._get_indentation(next_line)
                             if next_line.strip() and len(next_line_indent) <= len(method_indent):
                                 method_end_line = j - 1
                                 break
+
                         if method_end_line == -1:
                             method_end_line = len(lines) - 1
+
                         trailing_empty_lines = 0
                         for j in range(method_end_line, min(method_end_line + 3, len(lines))):
                             if not lines[j].strip():
@@ -87,17 +107,22 @@ class MethodTagProcessor(TagProcessor):
                                 break
                         method_end_line += trailing_empty_lines - 1
                         break
+
                 method_lines = method_code.split('\n')
                 indented_method_lines = [method_indent + line if line.strip() else line for line in method_lines]
+
                 if has_trailing_newline or (method_start_line != -1 and method_end_line + 1 < len(lines) and (not lines[method_end_line + 1].strip())):
                     indented_method_lines.append('')
+
                 indented_method = '\n'.join(indented_method_lines)
+
                 if method_start_line != -1:
                     new_lines = lines[:method_start_line] + indented_method_lines + lines[method_end_line + 1:]
                     new_code = '\n'.join(new_lines)
                     description = f"Update method '{method_name}' in class '{class_name}'"
                 else:
                     insert_position = class_start_line + 1
+
                     for i in range(class_start_line + 1, len(lines)):
                         if i < len(lines) - 1 and lines[i].strip() and (len(self._get_indentation(lines[i])) <= len(class_indent)):
                             break
@@ -105,11 +130,14 @@ class MethodTagProcessor(TagProcessor):
                             insert_position = i + 1
                             while insert_position < len(lines) and (not lines[insert_position].strip()):
                                 insert_position += 1
+
                     if insert_position > 0 and lines[insert_position - 1].strip():
                         indented_method_lines.insert(0, '')
+
                     new_lines = lines[:insert_position] + indented_method_lines + lines[insert_position:]
                     new_code = '\n'.join(new_lines)
                     description = f"Add method '{method_name}' to class '{class_name}'"
+
                 change_manager.in_memory_files[file_path] = new_code
                 return confirm_and_apply_change(file_path, new_code, description, change_manager.pending_changes)
             else:
@@ -117,16 +145,20 @@ class MethodTagProcessor(TagProcessor):
                 if not parser:
                     console.print(f'[bold red]Unsupported language: {language}[/bold red]')
                     return False
+
                 operation = OperationFactory.create_operation('add_method', {'path': file_path, 'class': class_name})
                 context = {'method_code': method_code, 'dry_run': True}
+
                 if operation.execute(context):
                     updated_content = context.get('new_content')
                     if not updated_content:
                         console.print('[bold red]Error: Failed to generate updated content.[/bold red]')
                         return False
+
                     description = f"Add/Update method '{method_name}' in class '{class_name}'"
                     confirmed = confirm_and_apply_change(file_path, updated_content, description, change_manager.pending_changes)
                     return confirmed
+
                 return False
         except Exception as e:
             console.print(f'[bold red]Error processing METHOD tag: {e}[/bold red]')

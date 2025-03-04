@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 
+import rich
 from rich import print as rprint
 from rich.panel import Panel
 from rich.table import Table
@@ -15,7 +16,7 @@ from patchcommander.core.config import config, console
 from patchcommander.core.processors import process_tags
 from patchcommander.core.tag_parser import parse_tags, count_tags_by_type, validate_tag
 from patchcommander.core.text_utils import normalize_line_endings
-
+from patchcommander.core.input_preprocessors import preprocess_input
 
 def print_banner():
     """
@@ -259,18 +260,14 @@ def main():
         print_banner()
         config.reset()
         return 0
-
-    # Add prompt and syntax options handling
     if args.prompt:
         print_banner()
         display_llm_docs(include_prompt=True)
         return 0
-
     if args.syntax:
         print_banner()
         display_llm_docs(include_prompt=False)
         return 0
-
     print_banner()
     if args.normalize_only and args.input_file:
         if not os.path.exists(args.input_file):
@@ -291,29 +288,25 @@ def main():
         return 0
     try:
         input_data = get_input_data(args.input_file)
-        console.print(f"[blue]Loaded {len(input_data)} characters of input data[/blue]")
-
-        # Normalize line endings
+        console.print(f'[blue]Loaded {len(input_data)} characters of input data[/blue]')
         input_data = normalize_line_endings(input_data)
 
-        # Parse tags from input
-        console.print("[bold]Parsing tags from input...[/bold]")
+        # Apply input preprocessors
+        input_data = preprocess_input(input_data)
+        rich.print(input_data)
+        input("CONTINUE?")
+        console.print('[bold]Parsing tags from input...[/bold]')
         tags = parse_tags(input_data)
-
-        # Count tags by type and display
         counts = count_tags_by_type(tags)
-        console.print("[bold]Tags found:[/bold]")
-        for tag_type, count in counts.items():
+        console.print('[bold]Tags found:[/bold]')
+        for (tag_type, count) in counts.items():
             if count > 0:
-                console.print(f"  {tag_type}: {count}")
-
-        # Validate tags
+                console.print(f'  {tag_type}: {count}')
         invalid_tags = []
         for tag in tags:
-            is_valid, error = validate_tag(tag)
+            (is_valid, error) = validate_tag(tag)
             if not is_valid:
                 invalid_tags.append((tag, error))
-
         if invalid_tags:
             console.print('[bold red]Found invalid tags:[/bold red]')
             for (tag, error) in invalid_tags:
