@@ -1,6 +1,3 @@
-"""
-Python language parser using tree-sitter.
-"""
 from typing import List, Optional
 from patchcommander.core.interfaces import LanguageParser
 from patchcommander.core.languages import get_parser
@@ -42,7 +39,8 @@ class PythonCodeTree(TreeSitterCodeTree):
         for child in class_node.get_children():
             if child.get_type() == 'block':
                 for inner_child in child.get_children():
-                    if inner_child.get_type() == 'function_definition':
+                    # Check for both standard and async function definitions
+                    if 'function' in inner_child.get_type():
                         methods.append(inner_child)
         return methods
 
@@ -60,9 +58,7 @@ class PythonCodeTree(TreeSitterCodeTree):
         Raises:
             ValueError: If class body cannot be found
         """
-        # Usuń puste linie z początku i końca zawartości metody
         method_code = method_code.strip('\n')
-
         body_node = None
         for child in class_node.get_children():
             if child.get_type() == 'block':
@@ -97,44 +93,28 @@ class PythonCodeTree(TreeSitterCodeTree):
             New tree with replaced method
         """
         new_method_code = new_method_code.strip('\n')
-
-        # Get the base indentation of the method node (class indentation level)
         base_indentation = self._get_indentation(method_node.ts_node.start_byte)
-
-        # Split the new method code into lines
         lines = new_method_code.split('\n')
-
-        # Get the indentation of first line in new code, to strip it
         first_line_indent = ''
         if lines and lines[0]:
             first_line = lines[0]
             first_line_indent = first_line[:len(first_line) - len(first_line.lstrip())]
-
-        # Properly indent each line with respect to indentation levels
         indented_lines = []
-        for i, line in enumerate(lines):
-            if not line.strip():  # Skip empty lines
+        for (i, line) in enumerate(lines):
+            if not line.strip():
                 indented_lines.append('')
                 continue
-
-            # Strip existing indent
             stripped_line = line
             if i == 0 or line.startswith(first_line_indent):
                 stripped_line = line[len(first_line_indent):]
-
-            # First line gets base indentation
             if i == 0:
                 indented_lines.append(base_indentation + stripped_line)
             else:
-                # Other lines get base indentation plus one level
                 indented_lines.append(base_indentation + '    ' + stripped_line)
-
         indented_method_code = '\n'.join(indented_lines)
-
         start_byte = method_node.ts_node.start_byte
         end_byte = method_node.ts_node.end_byte
         new_code = self.original_code[:start_byte] + indented_method_code + self.original_code[end_byte:]
-
         parser = get_parser(self.language_code)
         new_tree = parser.parse(bytes(new_code, 'utf8'))
         return self.__class__(new_tree, new_code, self.language_code)
