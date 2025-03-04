@@ -9,7 +9,7 @@ from rich.console import Console
 console = Console()
 
 # Tag types
-TAG_TYPES = ['FILE', 'CLASS', 'METHOD', 'FUNCTION', 'OPERATION']
+TAG_TYPES = ['FILE', 'CLASS', 'METHOD', 'FUNCTION', 'OPERATION', 'IMPORTS', 'CLASS_STATIC_PROPS']
 
 class Tag:
     """Represents a parsed tag from input text."""
@@ -89,10 +89,7 @@ def parse_tags(input_text: str) -> List[Tag]:
 
     # Regex for matching tags
     # This matches both normal tags <TAG>content</TAG> and self-closing tags <TAG />
-    tag_pattern = re.compile(
-        r'<(FILE|CLASS|METHOD|FUNCTION|OPERATION)(\s+[^>]*)?\s*(?:>(.*?)</\1\s*>|/>)',
-        re.DOTALL
-    )
+    tag_pattern = re.compile('<(FILE|CLASS|METHOD|FUNCTION|OPERATION|IMPORTS|CLASS_STATIC_PROPS)(\\s+[^>]*)?\\s*(?:>(.*?)</\\1\\s*>|/>)', re.DOTALL)
 
     for match in tag_pattern.finditer(input_text):
         tag_type = match.group(1)
@@ -179,7 +176,9 @@ def validate_tag(tag: Tag) -> Tuple[bool, Optional[str]]:
                 return False, "delete_method operation requires 'class' attribute"
             if 'method' not in tag.attributes:
                 return False, "delete_method operation requires 'method' attribute"
-
+        elif tag.tag_type == 'IMPORTS':
+            if 'path' not in tag.attributes:
+                return False, "IMPORTS tag requires 'path' attribute"
         else:
             return False, f"Unknown operation action: {action}"
 

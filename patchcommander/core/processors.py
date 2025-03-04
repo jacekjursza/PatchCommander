@@ -9,6 +9,7 @@ from patchcommander.core.tag_processors.class_tag import ClassTagProcessor
 from patchcommander.core.tag_processors.file_tag import FileTagProcessor
 from patchcommander.core.tag_processors.function_tag import FunctionTagProcessor
 from patchcommander.core.tag_processors.method_tag import MethodTagProcessor
+from patchcommander.core.tag_processors.imports_tag import ImportsTagProcessor
 from patchcommander.core.tag_processors.operation_tag import OperationTagProcessor
 from patchcommander.core.changes import change_manager
 from patchcommander.core.tag_parser import Tag
@@ -34,6 +35,8 @@ def process_tag(tag: Tag) -> bool:
         processor = FunctionTagProcessor(tag)
     elif tag.tag_type == 'OPERATION':
         processor = OperationTagProcessor(tag)
+    elif tag.tag_type == 'IMPORTS':
+        processor = ImportsTagProcessor(tag)
     else:
         console.print(f'[bold red]Unknown tag type: {tag.tag_type}[/bold red]')
         return False

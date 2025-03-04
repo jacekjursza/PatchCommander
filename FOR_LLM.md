@@ -47,6 +47,15 @@ def single_function_name(arguments):
 <OPERATION action="delete_method" source="path/to/file.py" class="ClassName" method="method_name" />
 ```
 
+**6. Import Statements Modification:**
+```
+<IMPORTS path="full/path/to/file.py">
+import os
+import sys
+from typing import List, Dict
+</IMPORTS>
+```
+
 ## IMPORTANT TAG GUIDELINES
 
 ### Clear and Effective Tagging Practices:
