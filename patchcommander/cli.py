@@ -293,8 +293,6 @@ def main():
 
         # Apply input preprocessors
         input_data = preprocess_input(input_data)
-        rich.print(input_data)
-        input("CONTINUE?")
         console.print('[bold]Parsing tags from input...[/bold]')
         tags = parse_tags(input_data)
         counts = count_tags_by_type(tags)
