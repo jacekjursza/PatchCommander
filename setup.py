@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='patchcommander',
-    version='1.1.0',
+    version='1.1.4',
     description='AI-assisted coding automation tool',
     author='PatchCommander Team',
     packages=find_packages(),
