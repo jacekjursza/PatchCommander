@@ -82,11 +82,9 @@ class Pipeline:
         if not self.global_preprocessor:
             raise ValueError('Nie ustawiono globalnego pre-procesora')
 
-        # Parsuj operacje przez globalny pre-procesor
         operations = self.global_preprocessor.process(input_text)
         console.print(f'[blue]Wykryto {len(operations)} operacji do przetworzenia[/blue]')
 
-        # Inicjalizuj wyniki dla każdego pliku
         results: Dict[str, PatchResult] = {}
         for operation in operations:
             if operation.path not in results:
@@ -94,7 +92,6 @@ class Pipeline:
                 results[operation.path] = PatchResult(path=operation.path, original_content=original_content, current_content=original_content)
             results[operation.path].add_operation(operation)
 
-        # Przetwarzanie przez pre-procesory
         for pre_processor in self.pre_processors:
             for operation in operations:
                 if pre_processor.can_handle(operation):
@@ -106,15 +103,12 @@ class Pipeline:
                         console.print(f'[bold red]{error_msg}[/bold red]')
                         operation.add_error(error_msg)
 
-        # Przetwarzanie przez procesory z rejestru
         for operation in operations:
             if not operation.has_errors():
-                # Użyj rejestru procesorów do przetworzenia operacji
                 ProcessorRegistry.process_operation(operation, results[operation.path])
 
-        # Przetwarzanie przez post-procesory
         for post_processor in self.post_processors:
-            for (path, result) in results.items():
+            for path, result in results.items():
                 try:
                     post_processor.process(result)
                     for operation in result.operations:

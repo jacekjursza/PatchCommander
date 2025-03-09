@@ -80,9 +80,8 @@ class DiffMatchPatchPythonFunctionProcessor(PythonProcessor, BaseDiffMatchPatchP
             operation.add_error('Missing function_name attribute')
             return
 
-        # Sprawdzamy tryb operacji - domyślnie 'replace'
-        mode = operation.attributes.get('mode', 'replace')
-        console.print(f'[blue]DiffMatchPatchPythonFunctionProcessor: Processing function {function_name} in mode: {mode}[/blue]')
+        # Ignorujemy atrybut mode - zawsze używamy trybu replace
+        console.print(f'[blue]DiffMatchPatchPythonFunctionProcessor: Processing function {function_name} using replace mode (merge mode is disabled)[/blue]')
 
         if not result.current_content:
             result.current_content = operation.content
@@ -107,110 +106,41 @@ class DiffMatchPatchPythonFunctionProcessor(PythonProcessor, BaseDiffMatchPatchP
             (function_start, function_end, original_function, indent) = boundaries
             console.print(f'[green]Found function {function_name} at position {function_start}-{function_end}[/green]')
 
-            # Dla trybu replace, po prostu zastępujemy całą funkcję
-            if mode == 'replace' or not self._validate_function_syntax(original_function):
-                if mode != 'replace':
-                    console.print(f'[yellow]Detected syntax error in function {function_name}. Falling back to replace mode...[/yellow]')
+            # Zawsze używamy trybu replace
+            empty_lines_before = 0
+            pos = function_start - 1
+            while pos >= 0 and result.current_content[pos] == '\n':
+                empty_lines_before += 1
+                pos -= 1
 
-                # Zachowujemy strukturę pustych linii przed i po funkcji
-                empty_lines_before = 0
-                pos = function_start - 1
-                while pos >= 0 and result.current_content[pos] == '\n':
-                    empty_lines_before += 1
-                    pos -= 1
+            empty_lines_after = 0
+            pos = function_end
+            while pos < len(result.current_content) and result.current_content[pos] == '\n':
+                empty_lines_after += 1
+                pos += 1
 
-                empty_lines_after = 0
-                pos = function_end
-                while pos < len(result.current_content) and result.current_content[pos] == '\n':
-                    empty_lines_after += 1
-                    pos += 1
+            console.print(f'[blue]Empty lines before function: {empty_lines_before}[/blue]')
+            console.print(f'[blue]Empty lines after function: {empty_lines_after}[/blue]')
 
-                console.print(f'[blue]Empty lines before function: {empty_lines_before}[/blue]')
-                console.print(f'[blue]Empty lines after function: {empty_lines_after}[/blue]')
+            normalized_lines_before = '\n' * max(2, min(empty_lines_before, self.MAX_EMPTY_LINES))
+            normalized_lines_after = '\n' * max(2, min(empty_lines_after, self.MAX_EMPTY_LINES))
 
-                normalized_lines_before = '\n' * max(2, min(empty_lines_before, self.MAX_EMPTY_LINES))
-                normalized_lines_after = '\n' * max(2, min(empty_lines_after, self.MAX_EMPTY_LINES))
+            new_function = self._format_with_indent(operation.content, indent)
+            console.print(f'[blue]Formatted function with indentation:[/blue]\n{new_function}')
 
-                new_function = self._format_with_indent(operation.content, indent)
-                console.print(f'[blue]Formatted function with indentation:[/blue]\n{new_function}')
+            prefix = result.current_content[:function_start - empty_lines_before]
+            suffix = result.current_content[function_end + empty_lines_after:]
 
-                prefix = result.current_content[:function_start - empty_lines_before]
-                suffix = result.current_content[function_end + empty_lines_after:]
+            if prefix and (not prefix.endswith('\n')):
+                prefix += '\n'
 
-                if prefix and (not prefix.endswith('\n')):
-                    prefix += '\n'
+            if suffix and (not suffix.startswith('\n')):
+                console.print(f'[yellow]Detected missing newline before next element in suffix - adding them[/yellow]')
+                suffix = '\n\n' + suffix
 
-                # Sprawdź czy potrzebujemy dodatkowych znaków nowej linii przed suffix
-                if suffix and not suffix.startswith('\n'):
-                    console.print(f'[yellow]Detected missing newline before next element in suffix - adding them[/yellow]')
-                    suffix = '\n\n' + suffix
-
-                new_code = prefix + normalized_lines_before + new_function + normalized_lines_after + suffix
-
-                result.current_content = new_code
-                console.print(f'[green]Replaced function {function_name}[/green]')
-                return
-
-            # W trybie merge, możemy użyć bardziej skomplikowanej logiki
-            console.print(f'[green]Merge mode - attempting intelligent merge of function {function_name}[/green]')
-
-            # Tutaj logika merge mogłaby być bardziej złożona,
-            # ale na razie używamy prostego zastąpienia ciała funkcji z zachowaniem deklaracji
-
-            # Znajdujemy linię deklaracji funkcji, uwzględniając adnotacje typów
-            def_match = re.search(f'(^|\\n)([ \\t]*)(async\\s+)?def\\s+{re.escape(function_name)}\\s*\\([^\\n]*\\)\\s*(->\\s*[^:]+)?\\s*:', original_function)
-            if not def_match:
-                console.print(f'[yellow]Could not find function declaration for {function_name}. Falling back to replace.[/yellow]')
-                # Używamy tej samej logiki co w trybie replace
-                prefix = result.current_content[:function_start]
-                suffix = result.current_content[function_end:]
-                new_function = self._format_with_indent(operation.content, indent)
-                result.current_content = prefix + new_function + suffix
-                return
-
-            # Próbujemy zachować deklarację funkcji i zastąpić tylko jej ciało
-            declaration = def_match.group(0)
-            declaration_end_pos = def_match.end()
-
-            # Znajdujemy ciało funkcji w nowej zawartości
-            new_def_match = re.search(f'(^|\\n)([ \\t]*)(async\\s+)?def\\s+{re.escape(function_name)}\\s*\\([^\\n]*\\)\\s*(->\\s*[^:]+)?\\s*:', operation.content)
-            if not new_def_match:
-                console.print(f'[yellow]Could not find function declaration in new content for {function_name}. Falling back to replace.[/yellow]')
-                # Używamy tej samej logiki co w trybie replace
-                prefix = result.current_content[:function_start]
-                suffix = result.current_content[function_end:]
-                new_function = self._format_with_indent(operation.content, indent)
-                result.current_content = prefix + new_function + suffix
-                return
-
-            new_declaration_end_pos = new_def_match.end()
-            new_body = operation.content[new_declaration_end_pos:]
-
-            # Formatujemy ciało funkcji z odpowiednim wcięciem
-            new_body_lines = new_body.splitlines()
-            formatted_body_lines = []
-            body_indent = indent + "    "
-
-            for line in new_body_lines:
-                if not line.strip():
-                    formatted_body_lines.append("")
-                else:
-                    line_content = line.lstrip()
-                    formatted_body_lines.append(f"{body_indent}{line_content}")
-
-            formatted_body = "\n".join(formatted_body_lines)
-
-            # Składamy funkcję z powrotem
-            prefix = result.current_content[:function_start]
-            suffix = result.current_content[function_end:]
-
-            # Używamy oryginalnej deklaracji funkcji i nowego ciała
-            original_declaration_with_indent = original_function[:declaration_end_pos]
-
-            new_code = prefix + original_declaration_with_indent + "\n" + formatted_body + suffix
-
+            new_code = prefix + normalized_lines_before + new_function + normalized_lines_after + suffix
             result.current_content = new_code
-            console.print(f'[green]Updated function {function_name} with merged content[/green]')
+            console.print(f'[green]Replaced function {function_name}[/green]')
 
         except Exception as e:
             console.print(f'[red]Error in DiffMatchPatchPythonFunctionProcessor: {str(e)}[/red]')
