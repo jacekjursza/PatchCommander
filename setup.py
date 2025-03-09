@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='patchcommander',
-    version='1.1.4',
+    version='1.1.5',  # Updated to match pyproject.toml
     description='AI-assisted coding automation tool',
     author='PatchCommander Team',
     packages=find_packages(),
@@ -14,7 +14,8 @@ setup(
         'pyperclip',
         'tree-sitter',
         'tree-sitter-python',
-        'tree-sitter-javascript'
+        'tree-sitter-javascript',
+        'diff-match-patch',  # Added missing dependency
     ],
     entry_points={
         'console_scripts': [
@@ -24,7 +25,10 @@ setup(
     },
     include_package_data=True,
     package_data={
-        'patchcommander': ['PROMPT.md', 'FOR_LLM.md'],
+        'patchcommander': [
+            'PROMPT.md',
+            'FOR_LLM.md'
+        ]
     },
     classifiers=[
         'Programming Language :: Python :: 3',
@@ -32,7 +36,7 @@ setup(
         'Operating System :: OS Independent',
         'Topic :: Software Development :: Code Generators',
         'Topic :: Software Development :: Libraries :: Python Modules',
-        'Intended Audience :: Developers',
+        'Intended Audience :: Developers'
     ],
-    python_requires='>=3.8',
+    python_requires='>=3.8'
 )

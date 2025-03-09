@@ -16,8 +16,9 @@ This creates a seamless workflow between AI code suggestions and practical imple
 
 - **LLM-friendly tag syntax**: Simple XML-like tags that AI models can easily adopt
 - **Multiple change types**: Support for file, class, function, method, and operation modifications
+- **XPath targeting**: Target specific code elements using intuitive path syntax (e.g., `ClassName.method_name`)
 - **Smart method handling**: Splits multiple method definitions automatically
-- **Diff preview**: View changes before applying them
+- **Diff preview**: View changes before applying them, with side-by-side comparison option
 - **Syntax validation**: Automatically checks for syntax errors and reverts changes if errors are found
 - **Clipboard support**: Read input directly from clipboard when no file is specified
 - **Multi-language support**: Works with Python and JavaScript files
@@ -65,6 +66,7 @@ pip install -e .
 - tree-sitter
 - tree-sitter-python
 - tree-sitter-javascript
+- diff-match-patch
 
 ## Usage
 
@@ -100,6 +102,27 @@ Replace an entire file's content:
 ```
 <FILE path="path/to/file.py">
 # New file content goes here
+</FILE>
+```
+
+### FILE with XPath
+
+Update or add a specific element in a file using XPath:
+
+```
+<FILE path="path/to/file.py" xpath="ClassName">
+class ClassName:
+    # Updated class content
+</FILE>
+
+<FILE path="path/to/file.py" xpath="ClassName.method_name">
+def method_name(self, args):
+    # Updated method implementation
+</FILE>
+
+<FILE path="path/to/file.py" xpath="function_name">
+def function_name(args):
+    # Updated function implementation
 </FILE>
 ```
 
@@ -155,7 +178,7 @@ Perform file operations:
 1. **Prompt the LLM**: Ask your LLM to implement a feature or fix a bug, instructing it to format changes using PatchCommander's tag syntax
 2. **Copy the output**: Save the LLM's response with the tagged code changes to a file or clipboard
 3. **Run PatchCommander**: Process the changes using `pcmd [filename]` or just `pcmd` for clipboard content
-4. **Review the changes**: Examine the diffs for each proposed change
+4. **Review the changes**: Examine the diffs for each proposed change (with side-by-side view if needed)
 5. **Confirm or reject**: Choose which changes to apply
 6. **Apply changes**: All confirmed changes are applied at once at the end of the process
 
@@ -165,9 +188,7 @@ Perform file operations:
 Please implement a user authentication system for my Flask application.
 Format your response using PatchCommander tag syntax:
 - Use <FILE> tags for new files or complete file replacements
-- Use <CLASS> tags for adding or updating classes
-- Use <FUNCTION> tags for adding or updating standalone functions
-- Use <METHOD> tags for adding or updating methods
+- Use <FILE> tags with xpath attribute for targeting specific elements
 - Use <OPERATION> tags for file operations
 
 Example format:
@@ -175,13 +196,15 @@ Example format:
 [code here]
 </FILE>
 
-<FUNCTION path="app/utils.py">
-[function code here]
-</FUNCTION>
+<FILE path="app/utils.py" xpath="validate_password">
+def validate_password(password):
+    [updated function code]
+</FILE>
 
-<METHOD path="app/models.py" class="User">
-[method code here]
-</METHOD>
+<FILE path="app/models.py" xpath="User.authenticate">
+def authenticate(self, password):
+    [method code here]
+</FILE>
 ```
 
 ## Example Implementation
@@ -196,15 +219,15 @@ class Example:
         return self.value
 </FILE>
 
-<FUNCTION path="example.py">
+<FILE path="example.py" xpath="utility_function">
 def utility_function(param):
     return param * 2
-</FUNCTION>
+</FILE>
 
-<METHOD path="example.py" class="Example">
+<FILE path="example.py" xpath="Example.set_value">
 def set_value(self, new_value):
     self.value = new_value
-</METHOD>
+</FILE>
 
 <OPERATION action="move_file" source="old_name.py" target="new_name.py" />
 ```
@@ -212,7 +235,7 @@ def set_value(self, new_value):
 ## How It Works
 
 1. **Preprocessing**: Tags are parsed and processed (e.g., multiple methods in a METHOD tag are split)
-2. **Processing**: Each tag is processed to generate the intended file changes
+2. **Processing**: Each tag is processed to generate the intended file changes using a pipeline architecture
 3. **Confirmation**: Changes are shown as diffs and require confirmation
 4. **Application**: All confirmed changes are applied together at the end
 

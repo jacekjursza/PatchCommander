@@ -80,7 +80,12 @@ class PythonCodeTree(TreeSitterCodeTree):
         new_tree = parser.parse(bytes(new_code_bytes, 'utf8'))
         return self.__class__(new_tree, new_code_bytes, self.language_code)
 
-    def replace_method_in_class(self, class_node: TreeSitterNode, method_node: TreeSitterNode, new_method_code: str) -> 'PythonCodeTree':
+    def replace_method_in_class(
+        self,
+        class_node: TreeSitterNode,
+        method_node: TreeSitterNode,
+        new_method_code: str,
+    ) -> "PythonCodeTree":
         """
         Replace a method in a class with new code, preserving position and indentation.
 
@@ -92,31 +97,55 @@ class PythonCodeTree(TreeSitterCodeTree):
         Returns:
             New tree with replaced method
         """
-        new_method_code = new_method_code.strip('\n')
+        new_method_code = new_method_code.strip("\n")
+
+        # Uzyskaj bazowe wcięcie dla metody
         base_indentation = self._get_indentation(method_node.ts_node.start_byte)
-        lines = new_method_code.split('\n')
-        first_line_indent = ''
+
+        # Normalizuj kod nowej metody
+        lines = new_method_code.split("\n")
+
+        # Określ wcięcie pierwszej linii
+        first_line_indent = ""
         if lines and lines[0]:
             first_line = lines[0]
-            first_line_indent = first_line[:len(first_line) - len(first_line.lstrip())]
+            first_line_indent = first_line[: len(first_line) - len(first_line.lstrip())]
+
         indented_lines = []
-        for (i, line) in enumerate(lines):
+        for i, line in enumerate(lines):
             if not line.strip():
-                indented_lines.append('')
+                # Puste linie pozostawiamy bez zmian
+                indented_lines.append("")
                 continue
+
+            # Usuwamy wcięcie z oryginalnej linii
             stripped_line = line
             if i == 0 or line.startswith(first_line_indent):
-                stripped_line = line[len(first_line_indent):]
+                stripped_line = line[len(first_line_indent) :]
+
+            # Dodajemy odpowiednie wcięcie
             if i == 0:
+                # Pierwsza linia z bazowym wcięciem
                 indented_lines.append(base_indentation + stripped_line)
             else:
-                indented_lines.append(base_indentation + '    ' + stripped_line)
-        indented_method_code = '\n'.join(indented_lines)
+                # Pozostałe linie mają dodatkowe wcięcie dla ciała metody
+                # Upewniamy się, że używamy dokładnie 4 spacji dla wcięcia
+                indented_lines.append(base_indentation + "    " + stripped_line)
+
+        indented_method_code = "\n".join(indented_lines)
+
+        # Zastąp starą metodę nową
         start_byte = method_node.ts_node.start_byte
         end_byte = method_node.ts_node.end_byte
-        new_code = self.original_code[:start_byte] + indented_method_code + self.original_code[end_byte:]
+        new_code = (
+            self.original_code[:start_byte]
+            + indented_method_code
+            + self.original_code[end_byte:]
+        )
+
+        # Przetwórz nowy kod
         parser = get_parser(self.language_code)
-        new_tree = parser.parse(bytes(new_code, 'utf8'))
+        new_tree = parser.parse(bytes(new_code, "utf8"))
         return self.__class__(new_tree, new_code, self.language_code)
 
     def find_method_by_name(self, class_node: TreeSitterNode, method_name: str) -> Optional[TreeSitterNode]:

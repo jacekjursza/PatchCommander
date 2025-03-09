@@ -1,96 +1,60 @@
 """
 Command-line interface for PatchCommander v2.
-Handles parsing of command line arguments and orchestrates the overall workflow.
+Utilizes refactored pipeline architecture.
 """
 import argparse
 import os
 import sys
-
+import difflib
+from typing import List, Dict
+from pathlib import Path
 import rich
-from rich import print as rprint
+from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-
+from rich.prompt import Prompt
+from rich.syntax import Syntax
+from rich import box
+import pyperclip
 from patchcommander import APP_NAME, VERSION
-from patchcommander.core.config import config, console
-from patchcommander.core.processors import process_tags
-from patchcommander.core.tag_parser import parse_tags, count_tags_by_type, validate_tag
+from patchcommander.core.config import config
 from patchcommander.core.text_utils import normalize_line_endings
-from patchcommander.core.input_preprocessors import preprocess_input
+from patchcommander.core.pipeline.pipeline import Pipeline
+from patchcommander.core.pipeline.models import PatchResult
+from patchcommander.core.pipeline.pre_processors.global_processor import TagParser
+from patchcommander.core.pipeline.pre_processors.custom.xpath_analyzer import XPathAnalyzer
+from patchcommander.core.pipeline.post_processors.syntax_validator import SyntaxValidator
+console = Console()
 
 def print_banner():
     """
-    Display the PatchCommander banner with version information.
+    Displays the PatchCommander banner with version information.
     """
-    rprint(Panel.fit(f'[bold blue]{APP_NAME}[/bold blue] [cyan]v{VERSION}[/cyan]\n[yellow]AI-assisted coding automation tool[/yellow]', border_style='blue'))
+    rich.print(Panel.fit(f'[bold blue]{APP_NAME}[/bold blue] [cyan]v{VERSION}[/cyan]\n[yellow]AI-assisted coding automation tool[/yellow]', border_style='blue'))
 
 def print_config():
-    """Print current configuration settings."""
+    """Displays the current configuration settings."""
     table = Table(title='Current Configuration')
     table.add_column('Setting', style='cyan')
     table.add_column('Value', style='green')
-    for key, value in config.data.items():
+    for (key, value) in config.data.items():
         table.add_row(key, str(value))
     console.print(table)
 
-def display_llm_docs(include_prompt=True):
-    """
-    Display documentation for LLMs.
-
-    Args:
-        include_prompt (bool): Whether to include full prompt (PROMPT.md) or just syntax guide (FOR_LLM.md)
-    """
-    files_to_display = []
-    if include_prompt:
-        prompt_path = find_resource_file('PROMPT.md')
-        if prompt_path and os.path.exists(prompt_path):
-            files_to_display.append(('Developer Collaboration Prompt', prompt_path))
-        else:
-            console.print('[yellow]Warning: Could not find PROMPT.md file.[/yellow]')
-
-    syntax_path = find_resource_file('FOR_LLM.md')
-    if syntax_path and os.path.exists(syntax_path):
-        files_to_display.append(('Tag Syntax Guide for LLMs', syntax_path))
-    else:
-        console.print('[yellow]Warning: Could not find FOR_LLM.md file.[/yellow]')
-
-    if not files_to_display:
-        console.print('[bold red]Error: Could not find required documentation files.[/bold red]')
-        console.print('[yellow]Make sure PROMPT.md and FOR_LLM.md are installed with the package.[/yellow]')
-        return
-
-    for (title, file_path) in files_to_display:
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            console.print(f'[bold blue]--- {title} ---[/bold blue]')
-            console.print(content)
-            console.print('\n')
-        except Exception as e:
-            console.print(f'[red]Error reading {file_path}: {e}[/red]')
-
 def find_resource_file(filename):
     """
-    Find a resource file in various possible locations.
+    Finds a resource file in various possible locations.
 
     Args:
-        filename (str): The name of the file to find
+        filename (str): Name of the file to find
 
     Returns:
         str or None: Path to the file if found, None otherwise
     """
-    possible_locations = [
-        os.path.join(os.getcwd(), filename),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), filename),
-        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), filename),
-        os.path.join(sys.prefix, 'share', 'patchcommander', filename),
-        os.path.join(os.path.expanduser('~'), '.patchcommander', filename),
-    ]
-
+    possible_locations = [os.path.join(os.getcwd(), filename), os.path.join(os.path.dirname(os.path.abspath(__file__)), filename), os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), filename), os.path.join(sys.prefix, 'share', 'patchcommander', filename), os.path.join(os.path.expanduser('~'), '.patchcommander', filename)]
     for location in possible_locations:
         if os.path.exists(location):
             return location
-
     try:
         import importlib.resources as pkg_resources
         try:
@@ -104,27 +68,49 @@ def find_resource_file(filename):
                 pass
     except ImportError:
         pass
-
     return None
+
+def display_llm_docs(include_prompt=True):
+    """
+    Displays documentation for LLMs.
+
+    Args:
+        include_prompt (bool): Whether to include the full prompt (PROMPT.md) or just the syntax instructions (FOR_LLM.md)
+    """
+    files_to_display = []
+    if include_prompt:
+        prompt_path = find_resource_file('PROMPT.md')
+        if prompt_path and os.path.exists(prompt_path):
+            files_to_display.append(('Developer Collaboration Prompt', prompt_path))
+        else:
+            console.print('[yellow]Warning: Could not find PROMPT.md file.[/yellow]')
+    syntax_path = find_resource_file('FOR_LLM.md')
+    if syntax_path and os.path.exists(syntax_path):
+        files_to_display.append(('Tag Syntax Guide for LLMs', syntax_path))
+    else:
+        console.print('[yellow]Warning: Could not find FOR_LLM.md file.[/yellow]')
+    if not files_to_display:
+        console.print('[bold red]Error: Could not find required documentation files.[/bold red]')
+        console.print('[yellow]Make sure PROMPT.md and FOR_LLM.md are installed with the package.[/yellow]')
+        return
+    for (title, file_path) in files_to_display:
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            console.print(f'[bold blue]--- {title} ---[/bold blue]')
+            console.print(content)
+            console.print('\n')
+        except Exception as e:
+            console.print(f'[red]Error reading {file_path}: {e}[/red]')
 
 def setup_argument_parser():
     """
-    Set up the command line argument parser.
+    Configures the command-line argument parser.
 
     Returns:
         ArgumentParser: Configured argument parser
     """
-    parser = argparse.ArgumentParser(
-        description='Process code fragments marked with tags for AI-assisted development.',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='\nExamples:\n  '
-               'pcmd input.txt             ---> Process tags from input.txt\n  '
-               'pcmd                       ---> Process tags from clipboard\n  '
-               'pcmd --normalize-only file.txt  ---> Only normalize line endings\n  '
-               'pcmd --config              ---> Show current configuration\n  '
-               'pcmd --set backup_enabled False  ---> Change a configuration value\n  '
-               'pcmd --diagnose            ---> Only diagnose paths without applying changes\n'
-    )
+    parser = argparse.ArgumentParser(description='Process code fragments marked with tags for AI-assisted development.', formatter_class=argparse.RawDescriptionHelpFormatter, epilog='\nExamples:\n  pcmd input.txt             ---> Process tags from input.txt\n  pcmd                       ---> Process tags from clipboard\n  pcmd --normalize-only file.txt  ---> Only normalize line endings\n  pcmd --config              ---> Show current configuration\n  pcmd --set backup_enabled False  ---> Change a configuration value\n  pcmd --diagnose            ---> Only diagnose paths without applying changes\n')
     parser.add_argument('input_file', nargs='?', help='Path to file with tags. If not provided, clipboard content will be used.')
     parser.add_argument('--normalize-only', action='store_true', help='Only normalize line endings in the specified file')
     parser.add_argument('--version', action='store_true', help='Show version information')
@@ -137,67 +123,15 @@ def setup_argument_parser():
     parser.add_argument('--syntax', action='store_true', help='Display PatchCommander tag syntax guide for LLMs (FOR_LLM.md)')
     return parser
 
-def sanitize_path(path):
-    """
-    Sanitize a file path by replacing invalid characters with underscores.
-
-    Args:
-        path (str): Path to sanitize
-
-    Returns:
-        str: Sanitized path
-    """
-    if not path:
-        return path
-    sanitized_path = path
-    for char in '<>':
-        if char in sanitized_path:
-            sanitized_path = sanitized_path.replace(char, '_')
-            console.print(f'[yellow]Warning: Replaced invalid character "{char}" in path with underscore.[/yellow]')
-    return sanitized_path
-
-def diagnose_paths(input_data):
-    """
-    Check for problematic paths in tag attributes and report them without making changes.
-
-    Args:
-        input_data (str): Input data containing tags
-    """
-    console.print('[bold]Diagnosing paths in input data...[/bold]')
-    invalid_chars = '<>:"|?*' if os.name == 'nt' else '<>'
-    tags = parse_tags(input_data)
-    problematic_paths = []
-    for tag in tags:
-        paths = []
-        if 'path' in tag.attributes:
-            paths.append(('path', tag.attributes['path']))
-        if 'source' in tag.attributes:
-            paths.append(('source', tag.attributes['source']))
-        if 'target' in tag.attributes:
-            paths.append(('target', tag.attributes['target']))
-        for (attr_name, path) in paths:
-            if not path:
-                continue
-            has_invalid_chars = any((c in path for c in invalid_chars))
-            if has_invalid_chars:
-                problematic_paths.append((tag.tag_type, attr_name, path))
-    if problematic_paths:
-        console.print('[bold red]Found problematic paths:[/bold red]')
-        for (tag_type, attr_name, path) in problematic_paths:
-            sanitized = sanitize_path(path)
-            console.print(f'  [yellow]<{tag_type}>[/yellow] {attr_name}="{path}" → {attr_name}="{sanitized}"')
-    else:
-        console.print('[green]No problematic paths found.[/green]')
-
 def get_input_data(input_file):
     """
-    Get input data from a file or clipboard.
+    Gets input data from a file or clipboard.
 
     Args:
-        input_file (str): Path to input file or None to use clipboard
+        input_file (str): Path to the input file or None to use clipboard
 
     Returns:
-        str: Content from file or clipboard
+        str: Content of the file or clipboard
     """
     try:
         if input_file:
@@ -210,7 +144,6 @@ def get_input_data(input_file):
             return data
         else:
             try:
-                import pyperclip
                 clipboard_content = pyperclip.paste()
                 if clipboard_content.strip() == '':
                     console.print('[bold yellow]Clipboard is empty. Please copy content first. Exiting.[/bold yellow]')
@@ -224,9 +157,164 @@ def get_input_data(input_file):
         console.print(f'[bold red]Error getting input: {e}[/bold red]')
         sys.exit(1)
 
+def setup_pipeline():
+    """
+    Configures the PatchCommander processing pipeline.
+
+    Returns:
+        Pipeline: Configured pipeline
+    """
+    pipeline = Pipeline()
+    pipeline.set_global_preprocessor(TagParser())
+    pipeline.add_preprocessor(XPathAnalyzer())
+    pipeline.add_postprocessor(SyntaxValidator())
+    return pipeline
+
+def generate_side_by_side_diff(old_lines, new_lines, file_path):
+    """
+    Generates a side-by-side diff view.
+
+    Args:
+        old_lines: List of lines from the original file
+        new_lines: List of lines from the new version of the file
+        file_path: Path to the modified file
+
+    Returns:
+        Rich Table object with side-by-side diff
+    """
+    from rich.text import Text
+    import difflib
+    matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
+    table = Table(show_header=True, header_style='bold', box=box.SIMPLE)
+    table.add_column(f'Current: {file_path}', style='cyan', width=None)
+    table.add_column(f'New: {file_path}', style='green', width=None)
+    max_context_lines = config.get('max_diff_context_lines', 3)
+    for (tag, i1, i2, j1, j2) in matcher.get_opcodes():
+        if tag == 'equal':
+            context_lines = min(max_context_lines, i2 - i1)
+            if context_lines > 0:
+                table.add_row(Text(old_lines[i1], style='dim'), Text(new_lines[j1], style='dim'))
+                if context_lines > 1 and i2 - i1 > 3:
+                    table.add_row(Text('...', style='dim'), Text('...', style='dim'))
+                if context_lines > 1 and i1 + 1 < i2:
+                    table.add_row(Text(old_lines[i2 - 1], style='dim'), Text(new_lines[j2 - 1], style='dim'))
+        elif tag == 'replace':
+            for line_num in range(max(i2 - i1, j2 - j1)):
+                old_idx = i1 + line_num if line_num < i2 - i1 else None
+                new_idx = j1 + line_num if line_num < j2 - j1 else None
+                old_line = Text(old_lines[old_idx], style='red') if old_idx is not None else Text('')
+                new_line = Text(new_lines[new_idx], style='green') if new_idx is not None else Text('')
+                table.add_row(old_line, new_line)
+        elif tag == 'delete':
+            for line_num in range(i1, i2):
+                table.add_row(Text(old_lines[line_num], style='red'), Text('', style=''))
+        elif tag == 'insert':
+            for line_num in range(j1, j2):
+                table.add_row(Text('', style=''), Text(new_lines[line_num], style='green'))
+    return table
+
+def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
+    """
+    Shows diff for each file and asks for confirmation.
+
+    Args:
+        results: List of operation results
+
+    Returns:
+        Dict[str, bool]: Dictionary with file paths and approval flags
+    """
+    approvals = {}
+    for result in results:
+        if result.has_errors():
+            console.print(f'[bold red]Errors found in processing {result.path}:[/bold red]')
+            for error in result.errors:
+                console.print(f'  - {error}')
+            for operation in result.operations:
+                for error in operation.errors:
+                    console.print(f'  - {error}')
+            if config.get('default_yes_to_all', False):
+                console.print(f"[blue]Continue with other changes despite errors in {result.path}? (Automatically answered 'y' due to default_yes_to_all setting)[/blue]")
+                approvals[result.path] = False
+                continue
+            answer = Prompt.ask(f'Continue with other changes despite errors in {result.path}?', choices=['y', 'n'], default='y')
+            if answer.lower() != 'y':
+                approvals[result.path] = False
+                console.print(f'[yellow]Skipping changes to {result.path}.[/yellow]')
+                continue
+        if result.original_content == result.current_content:
+            console.print(f'[blue]No changes to {result.path}[/blue]')
+            approvals[result.path] = False
+            continue
+        old_lines = result.original_content.splitlines()
+        new_lines = result.current_content.splitlines()
+        diff_lines = list(difflib.unified_diff(old_lines, new_lines, fromfile=f'current: {result.path}', tofile=f'new: {result.path}', lineterm=''))
+        if not diff_lines:
+            console.print(f'[blue]No changes detected for {result.path}.[/blue]')
+            approvals[result.path] = False
+            continue
+        diff_text = '\n'.join(diff_lines)
+        syntax = Syntax(diff_text, 'diff', theme='monokai', line_numbers=True)
+        panel = Panel(syntax, title=f'Changes for: {result.path}', border_style='blue', box=box.DOUBLE)
+        console.print(panel)
+        if config.get('default_yes_to_all', False):
+            console.print(f"[blue]Apply changes to {result.path}? (Automatically answered 'y' due to default_yes_to_all setting)[/blue]")
+            approvals[result.path] = True
+            continue
+        answer = Prompt.ask(f'Apply changes to {result.path}?', choices=['y', 'n', 's', 'd'], default='y')
+        if answer.lower() == 'y':
+            approvals[result.path] = True
+            console.print(f'[green]Change approved for {result.path}.[/green]')
+        elif answer.lower() == 's':
+            approvals[result.path] = False
+            console.print(f'[yellow]Skipping changes to {result.path} for now.[/yellow]')
+        elif answer.lower() == 'd':
+            console.print('\n[bold]Side-by-side diff view:[/bold]')
+            side_diff = generate_side_by_side_diff(old_lines, new_lines, result.path)
+            console.print(side_diff)
+            second_answer = Prompt.ask(f'Apply changes to {result.path}?', choices=['y', 'n', 's'], default='y')
+            if second_answer.lower() == 'y':
+                approvals[result.path] = True
+                console.print(f'[green]Change approved for {result.path}.[/green]')
+            elif second_answer.lower() == 's':
+                approvals[result.path] = False
+                console.print(f'[yellow]Skipping changes to {result.path} for now.[/yellow]')
+            else:
+                approvals[result.path] = False
+                console.print(f'[yellow]Changes to {result.path} rejected.[/yellow]')
+        else:
+            approvals[result.path] = False
+            console.print(f'[yellow]Changes to {result.path} rejected.[/yellow]')
+    return approvals
+
+def apply_changes(results: List[PatchResult], approvals: Dict[str, bool]) -> int:
+    """
+    Applies approved changes to files.
+
+    Args:
+        results: List of operation results
+        approvals: Dictionary with approval decisions
+
+    Returns:
+        int: Number of modified files
+    """
+    modified_count = 0
+    for result in results:
+        if approvals.get(result.path, False):
+            try:
+                directory = os.path.dirname(result.path)
+                if directory:
+                    os.makedirs(directory, exist_ok=True)
+                with open(result.path, 'w', encoding='utf-8') as f:
+                    f.write(result.current_content)
+                console.print(f'[green]Applied changes to {result.path}[/green]')
+                modified_count += 1
+            except Exception as e:
+                console.print(f'[bold red]Error applying changes to {result.path}: {e}[/bold red]')
+    return modified_count
+
 def main():
     """
-    Main entry point for the application.
+    Main function of the program.
 
     Returns:
         int: Exit code
@@ -280,41 +368,15 @@ def main():
             f.write(normalized)
         console.print(f'[bold green]Normalized line endings in {args.input_file}[/bold green]')
         return 0
-    if args.diagnose:
-        input_data = get_input_data(args.input_file)
-        input_data = normalize_line_endings(input_data)
-        diagnose_paths(input_data)
-        console.print('[blue]Diagnosis completed. Use without --diagnose flag to process changes.[/blue]')
-        return 0
     try:
         input_data = get_input_data(args.input_file)
         console.print(f'[blue]Loaded {len(input_data)} characters of input data[/blue]')
         input_data = normalize_line_endings(input_data)
-
-        # Apply input preprocessors
-        input_data = preprocess_input(input_data)
-        console.print('[bold]Parsing tags from input...[/bold]')
-        tags = parse_tags(input_data)
-        counts = count_tags_by_type(tags)
-        console.print('[bold]Tags found:[/bold]')
-        for (tag_type, count) in counts.items():
-            if count > 0:
-                console.print(f'  {tag_type}: {count}')
-        invalid_tags = []
-        for tag in tags:
-            (is_valid, error) = validate_tag(tag)
-            if not is_valid:
-                invalid_tags.append((tag, error))
-        if invalid_tags:
-            console.print('[bold red]Found invalid tags:[/bold red]')
-            for (tag, error) in invalid_tags:
-                console.print(f'  [yellow]{tag.tag_type}[/yellow]: {error}')
-            if not args.debug:
-                console.print('[yellow]Use --debug flag to continue despite invalid tags[/yellow]')
-                return 1
-        console.print('[blue]Note: Invalid characters in paths (<, >, etc.) will be automatically sanitized[/blue]')
-        success_count = process_tags(tags)
-        console.print(f'[bold green]Successfully processed {success_count} out of {len(tags)} tags.[/bold green]')
+        pipeline = setup_pipeline()
+        results = pipeline.run(input_data)
+        approvals = show_diffs_and_confirm(results)
+        modified_count = apply_changes(results, approvals)
+        console.print(f'[bold green]Processing completed with {modified_count} file(s) affected.[/bold green]')
     except KeyboardInterrupt:
         console.print('\n[yellow]Operation cancelled by user.[/yellow]')
         return 130
@@ -325,9 +387,4 @@ def main():
             console.print(traceback.format_exc())
         console.print(f'[bold red]Error: {str(e)}[/bold red]')
         return 1
-    console.print('[bold green]Operation completed![/bold green]')
     return 0
-
-if __name__ == "__main__":
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    sys.exit(main())
