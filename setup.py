@@ -5,17 +5,18 @@ from setuptools import setup, find_packages
 
 setup(
     name='patchcommander',
-    version='1.1.5',  # Updated to match pyproject.toml
+    version='1.1.5',
     description='AI-assisted coding automation tool',
     author='PatchCommander Team',
     packages=find_packages(),
     install_requires=[
-        'rich',
-        'pyperclip',
-        'tree-sitter',
-        'tree-sitter-python',
-        'tree-sitter-javascript',
-        'diff-match-patch',  # Added missing dependency
+        'rich>=12.6.0',
+        'pyperclip>=1.8.2',
+        'tree-sitter>=0.20.0',
+        'tree-sitter-python>=0.20.0',
+        'tree-sitter-javascript>=0.20.0',
+        'diff-match-patch>=20200713',
+        'textual>=0.14.0',  # Required for interactive diff viewer
     ],
     entry_points={
         'console_scripts': [
@@ -25,10 +26,7 @@ setup(
     },
     include_package_data=True,
     package_data={
-        'patchcommander': [
-            'PROMPT.md',
-            'FOR_LLM.md'
-        ]
+        'patchcommander': ['PROMPT.md', 'FOR_LLM.md']
     },
     classifiers=[
         'Programming Language :: Python :: 3',

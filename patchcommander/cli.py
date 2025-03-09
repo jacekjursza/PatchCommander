@@ -222,7 +222,7 @@ def generate_side_by_side_diff(old_lines, new_lines, file_path):
 
 def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
     """
-    Shows diff for each file and asks for confirmation using the interactive diff viewer.
+    Shows diff for each file and asks for confirmation.
 
     Args:
         results: List of operation results
@@ -232,171 +232,87 @@ def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
     """
     approvals = {}
 
-    # Sprawdzamy, czy interaktywny diff viewer jest dostępny
-    try:
-        from patchcommander.diff_viewer import show_interactive_diff
-
-        has_interactive_diff = True
-    except ImportError:
-        has_interactive_diff = False
-        console.print(
-            "[yellow]Interactive diff viewer not available. Using simple diff view.[/yellow]"
-        )
-
-    # Iterujemy przez wszystkie wyniki
     for result in results:
-        # Przygotowujemy listę błędów (jeśli są)
-        errors = []
-
-        # Zbieramy wszystkie błędy z wyniku i operacji
         if result.has_errors():
-            errors.extend(result.errors)
+            console.print(f'[bold red]Errors found in processing {result.path}:[/bold red]')
+            for error in result.errors:
+                console.print(f'  - {error}')
             for operation in result.operations:
-                errors.extend(operation.errors)
-
-        # Jeśli są błędy, pytamy użytkownika czy chce kontynuować
-        if errors:
-            console.print(
-                f"[bold red]Errors found in processing {result.path}:[/bold red]"
-            )
-            for error in errors:
-                console.print(f"  - {error}")
-
-            if config.get("default_yes_to_all", False):
-                console.print(
-                    f"[blue]Continue with other changes despite errors in {result.path}? "
-                    f"(Automatically answered 'y' due to default_yes_to_all setting)[/blue]"
-                )
+                for error in operation.errors:
+                    console.print(f'  - {error}')
+            if config.get('default_yes_to_all', False):
+                console.print(f"[blue]Continue with other changes despite errors in {result.path}? (Automatically answered 'y' due to default_yes_to_all setting)[/blue]")
                 approvals[result.path] = False
                 continue
-
-            # Jeśli mamy interaktywny diff, używamy go nawet dla plików z błędami
-            if has_interactive_diff:
-                console.print(
-                    f"[yellow]Showing interactive diff for {result.path} despite errors[/yellow]"
-                )
-                interactive_result = show_interactive_diff(
-                    result.original_content,
-                    result.current_content,
-                    result.path,
-                    errors=errors,
-                )
-
-                if interactive_result == "yes":
-                    approvals[result.path] = True
-                    console.print(f"[green]Change approved for {result.path}.[/green]")
-                elif interactive_result == "no":
-                    approvals[result.path] = False
-                    console.print(
-                        f"[yellow]Changes to {result.path} rejected.[/yellow]"
-                    )
-                elif interactive_result == "skip":
-                    approvals[result.path] = False
-                    console.print(
-                        f"[yellow]Skipping changes to {result.path} for now.[/yellow]"
-                    )
-                elif interactive_result == "quit":
-                    console.print("[yellow]User aborted the diff process.[/yellow]")
-                    break
+            answer = Prompt.ask(f'Continue with other changes despite errors in {result.path}?', choices=['y', 'n'], default='y')
+            if answer.lower() != 'y':
+                approvals[result.path] = False
+                console.print(f'[yellow]Skipping changes to {result.path}.[/yellow]')
                 continue
-            else:
-                # Fallback do prostego pytania jeśli nie ma interaktywnego diffa
-                answer = Prompt.ask(
-                    f"Continue with other changes despite errors in {result.path}?",
-                    choices=["y", "n"],
-                    default="y",
-                )
-                if answer.lower() != "y":
-                    approvals[result.path] = False
-                    console.print(
-                        f"[yellow]Skipping changes to {result.path}.[/yellow]"
-                    )
-                    continue
 
-        # Sprawdzamy, czy są jakieś zmiany
         if result.original_content == result.current_content:
-            console.print(f"[blue]No changes to {result.path}[/blue]")
+            console.print(f'[blue]No changes to {result.path}[/blue]')
             approvals[result.path] = False
             continue
 
-        # Jeśli włączona jest opcja automatycznego zatwierdzania wszystkich zmian
-        if config.get("default_yes_to_all", False):
-            console.print(
-                f"[blue]Apply changes to {result.path}? "
-                f"(Automatically answered 'y' due to default_yes_to_all setting)[/blue]"
-            )
+        old_lines = result.original_content.splitlines()
+        new_lines = result.current_content.splitlines()
+
+        diff_lines = list(difflib.unified_diff(old_lines, new_lines, fromfile=f'current: {result.path}', tofile=f'new: {result.path}', lineterm=''))
+        if not diff_lines:
+            console.print(f'[blue]No changes detected for {result.path}.[/blue]')
+            approvals[result.path] = False
+            continue
+
+        if config.get('default_yes_to_all', False):
+            console.print(f"[blue]Apply changes to {result.path}? (Automatically answered 'y' due to default_yes_to_all setting)[/blue]")
             approvals[result.path] = True
             continue
 
-        # Używamy interaktywnego diffa jeśli jest dostępny
-        if has_interactive_diff:
-            try:
-                interactive_result = show_interactive_diff(
-                    result.original_content, result.current_content, result.path
-                )
-
-                if interactive_result == "yes":
-                    approvals[result.path] = True
-                    console.print(f"[green]Change approved for {result.path}.[/green]")
-                elif interactive_result == "no":
-                    approvals[result.path] = False
-                    console.print(
-                        f"[yellow]Changes to {result.path} rejected.[/yellow]"
-                    )
-                elif interactive_result == "skip":
-                    approvals[result.path] = False
-                    console.print(
-                        f"[yellow]Skipping changes to {result.path} for now.[/yellow]"
-                    )
-                elif interactive_result == "quit":
-                    console.print("[yellow]User aborted the diff process.[/yellow]")
-                    break
-            except Exception as e:
-                console.print(f"[red]Error displaying interactive diff: {e}[/red]")
-                if config.get("debug_mode", False):
-                    import traceback
-
-                    console.print(f"[dim]{traceback.format_exc()}[/dim]")
-
-                # Fallback do standardowego diffa w przypadku błędu
-                _show_standard_diff(result)
-                answer = Prompt.ask(
-                    f"Apply changes to {result.path}?",
-                    choices=["y", "n", "s"],
-                    default="y",
-                )
-                if answer.lower() == "y":
-                    approvals[result.path] = True
-                    console.print(f"[green]Change approved for {result.path}.[/green]")
-                elif answer.lower() == "s":
-                    approvals[result.path] = False
-                    console.print(
-                        f"[yellow]Skipping changes to {result.path} for now.[/yellow]"
-                    )
-                else:
-                    approvals[result.path] = False
-                    console.print(
-                        f"[yellow]Changes to {result.path} rejected.[/yellow]"
-                    )
-        else:
-            # Jeśli nie ma interaktywnego diffa, używamy standardowego
-            _show_standard_diff(result)
-            answer = Prompt.ask(
-                f"Apply changes to {result.path}?", choices=["y", "n", "s"], default="y"
+        # Always use interactive diff viewer
+        try:
+            from patchcommander.diff_viewer import show_interactive_diff
+            interactive_result = show_interactive_diff(
+                result.original_content,
+                result.current_content,
+                result.path,
+                errors=result.errors
             )
-            if answer.lower() == "y":
+
+            if interactive_result == "yes":
                 approvals[result.path] = True
-                console.print(f"[green]Change approved for {result.path}.[/green]")
-            elif answer.lower() == "s":
+                console.print(f'[green]Change approved for {result.path}.[/green]')
+            elif interactive_result == "no":
                 approvals[result.path] = False
-                console.print(
-                    f"[yellow]Skipping changes to {result.path} for now.[/yellow]"
-                )
+                console.print(f'[yellow]Changes to {result.path} rejected.[/yellow]')
+            elif interactive_result == "skip":
+                approvals[result.path] = False
+                console.print(f'[yellow]Skipping changes to {result.path} for now.[/yellow]')
+            elif interactive_result == "quit":
+                console.print("[yellow]User aborted the diff process.[/yellow]")
+                break
+        except Exception as e:
+            console.print(f'[red]Error displaying interactive diff: {e}[/red]')
+            import traceback
+            console.print(f'[dim]{traceback.format_exc()}[/dim]')
+
+            # Fallback to standard prompt if interactive diff fails
+            console.print("[yellow]Falling back to standard prompt due to error...[/yellow]")
+            _show_standard_diff(result)
+
+            answer = Prompt.ask(f'Apply changes to {result.path}?', choices=['y', 'n', 's'], default='y')
+            if answer.lower() == 'y':
+                approvals[result.path] = True
+                console.print(f'[green]Change approved for {result.path}.[/green]')
+            elif answer.lower() == 's':
+                approvals[result.path] = False
+                console.print(f'[yellow]Skipping changes to {result.path} for now.[/yellow]')
             else:
                 approvals[result.path] = False
-                console.print(f"[yellow]Changes to {result.path} rejected.[/yellow]")
+                console.print(f'[yellow]Changes to {result.path} rejected.[/yellow]')
 
     return approvals
+
 
 
 def _show_standard_diff(result: PatchResult) -> None:
