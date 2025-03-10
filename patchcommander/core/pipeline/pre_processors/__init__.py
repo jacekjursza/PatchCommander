@@ -1,5 +1,5 @@
 """
-Inicjalizacja modułu pre-procesorów.
+Initialization of pre-processors module.
 """
 from .global_processor import TagParser
 

@@ -99,13 +99,13 @@ class PythonCodeTree(TreeSitterCodeTree):
         """
         new_method_code = new_method_code.strip("\n")
 
-        # Uzyskaj bazowe wcięcie dla metody
+        # Get the base indentation for the method
         base_indentation = self._get_indentation(method_node.ts_node.start_byte)
 
-        # Normalizuj kod nowej metody
+        # Normalize the new method code
         lines = new_method_code.split("\n")
 
-        # Określ wcięcie pierwszej linii
+        # Determine indentation of the first line
         first_line_indent = ""
         if lines and lines[0]:
             first_line = lines[0]
@@ -114,27 +114,27 @@ class PythonCodeTree(TreeSitterCodeTree):
         indented_lines = []
         for i, line in enumerate(lines):
             if not line.strip():
-                # Puste linie pozostawiamy bez zmian
+                # Empty lines remain unchanged
                 indented_lines.append("")
                 continue
 
-            # Usuwamy wcięcie z oryginalnej linii
+            # Remove indentation from the original line
             stripped_line = line
             if i == 0 or line.startswith(first_line_indent):
                 stripped_line = line[len(first_line_indent) :]
 
-            # Dodajemy odpowiednie wcięcie
+            # Add appropriate indentation
             if i == 0:
-                # Pierwsza linia z bazowym wcięciem
+                # First line gets the base indentation
                 indented_lines.append(base_indentation + stripped_line)
             else:
-                # Pozostałe linie mają dodatkowe wcięcie dla ciała metody
-                # Upewniamy się, że używamy dokładnie 4 spacji dla wcięcia
+                # Remaining lines get additional indentation for method body
+                # Ensure we use exactly 4 spaces for indentation
                 indented_lines.append(base_indentation + "    " + stripped_line)
 
         indented_method_code = "\n".join(indented_lines)
 
-        # Zastąp starą metodę nową
+        # Replace old method with new one
         start_byte = method_node.ts_node.start_byte
         end_byte = method_node.ts_node.end_byte
         new_code = (
@@ -143,7 +143,7 @@ class PythonCodeTree(TreeSitterCodeTree):
             + self.original_code[end_byte:]
         )
 
-        # Przetwórz nowy kod
+        # Process the new code
         parser = get_parser(self.language_code)
         new_tree = parser.parse(bytes(new_code, "utf8"))
         return self.__class__(new_tree, new_code, self.language_code)

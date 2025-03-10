@@ -43,7 +43,7 @@ class DiffMatchPatchPythonFunctionProcessor(PythonProcessor, BaseDiffMatchPatchP
         More robust version of function boundary detection.
         With support for return type annotations.
         """
-        # Zaktualizowany wzorzec uwzględniający adnotacje typów zwracanych
+        # Updated pattern to account for return type annotations
         pattern = f'(^|\\n)([ \\t]*)(async\\s+)?def\\s+{re.escape(function_name)}\\s*\\([^)]*\\)\\s*(->\\s*[^:]+)?\\s*:'
         matches = list(re.finditer(pattern, content))
         if not matches:
@@ -80,7 +80,7 @@ class DiffMatchPatchPythonFunctionProcessor(PythonProcessor, BaseDiffMatchPatchP
             operation.add_error('Missing function_name attribute')
             return
 
-        # Ignorujemy atrybut mode - zawsze używamy trybu replace
+        # We ignore the mode attribute - always use replace mode
         console.print(f'[blue]DiffMatchPatchPythonFunctionProcessor: Processing function {function_name} using replace mode (merge mode is disabled)[/blue]')
 
         if not result.current_content:
@@ -106,7 +106,7 @@ class DiffMatchPatchPythonFunctionProcessor(PythonProcessor, BaseDiffMatchPatchP
             (function_start, function_end, original_function, indent) = boundaries
             console.print(f'[green]Found function {function_name} at position {function_start}-{function_end}[/green]')
 
-            # Zawsze używamy trybu replace
+            # Always use replace mode
             empty_lines_before = 0
             pos = function_start - 1
             while pos >= 0 and result.current_content[pos] == '\n':

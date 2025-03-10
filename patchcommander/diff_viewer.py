@@ -371,7 +371,7 @@ def show_interactive_diff(
 
 
 if __name__ == "__main__":
-    # Powielone linie, aby wymusić przewijanie
+    # Duplicated lines to force scrolling
     old = (
         "def hello():\n"
         '    print("Hello world")\n'

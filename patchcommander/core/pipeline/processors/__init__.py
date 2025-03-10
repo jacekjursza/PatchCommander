@@ -1,5 +1,5 @@
 """
-Inicjalizacja modułu procesorów.
+Initialization of processors module.
 """
-# Eksportujemy tylko to, co jest potrzebne dla innych modułów
+# Export only what is needed for other modules
 from .decorator import register_processor

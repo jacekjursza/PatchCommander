@@ -315,10 +315,10 @@ def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
 
 def _show_standard_diff(result: PatchResult) -> None:
     """
-    Wyświetla standardowy diff w konsoli Rich.
+    Displays a standard diff in the Rich console.
 
     Args:
-        result: Wynik operacji zawierający oryginalną i zmodyfikowaną zawartość
+        result: Operation result containing original and modified content
     """
     old_lines = result.original_content.splitlines()
     new_lines = result.current_content.splitlines()
@@ -454,4 +454,3 @@ def main():
         console.print(f'[bold red]Error: {str(e)}[/bold red]')
         return 1
     return 0
-

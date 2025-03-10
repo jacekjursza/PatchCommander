@@ -1,5 +1,5 @@
 """
-Inicjalizacja modułu post-procesorów.
+Initialization of post-processors module.
 """
 from .syntax_validator import SyntaxValidator
 

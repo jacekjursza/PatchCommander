@@ -79,40 +79,40 @@ class TreeSitterCodeTree(CodeTree):
         start_byte = node.ts_node.start_byte
         end_byte = node.ts_node.end_byte
 
-        # Usuń puste linie z początku i końca zawartości
+        # Remove empty lines from the beginning and end of the content
         new_content = new_content.strip('\n')
 
-        # Zachowaj wcięcie oryginalnego węzła
+        # Preserve the indentation of the original node
         indentation = self._get_indentation(start_byte)
 
-        # Specjalna obsługa dla metod/funkcji w Pythonie
+        # Special handling for methods/functions in Python
         if self.language_code == 'python' and node.get_type() == 'function_definition':
-            # Podziel treść na linie i zastosuj prawidłowe wcięcia
+            # Split content into lines and apply correct indentation
             lines = new_content.split('\n')
             if not lines:
-                return self  # Jeśli nie ma treści, nie rób nic
+                return self  # If there is no content, do nothing
 
             indented_lines = []
-            # Pierwsza linia (z 'def') dostaje podstawowe wcięcie
+            # First line (with 'def') gets basic indentation
             indented_lines.append(indentation + lines[0])
 
-            # Pozostałe linie dostają dodatkowe wcięcie (zazwyczaj 4 spacje więcej)
+            # Remaining lines get additional indentation (usually 4 more spaces)
             for line in lines[1:]:
-                if line.strip():  # Jeśli linia nie jest pusta
+                if line.strip():  # If the line is not empty
                     indented_lines.append(indentation + "    " + line)
                 else:
-                    indented_lines.append("")  # Puste linie zostają puste
+                    indented_lines.append("")  # Empty lines remain empty
 
             new_content = '\n'.join(indented_lines)
         else:
-            # Standardowe zastosowanie wcięcia do wszystkich linii
+            # Standard indentation application to all lines
             lines = new_content.split('\n')
             indented_lines = []
             for line in lines:
-                if line.strip():  # Jeśli linia nie jest pusta
+                if line.strip():  # If the line is not empty
                     indented_lines.append(indentation + line)
                 else:
-                    indented_lines.append("")  # Puste linie zostają puste
+                    indented_lines.append("")  # Empty lines remain empty
 
             new_content = '\n'.join(indented_lines)
 
@@ -132,7 +132,7 @@ class TreeSitterCodeTree(CodeTree):
         Returns:
             New tree with code added
         """
-        # Usuń puste linie z początku i końca zawartości
+        # Remove empty lines from the beginning and end of the content
         code_to_add = code_to_add.strip('\n')
 
         end_byte = body_node.ts_node.end_byte - 1

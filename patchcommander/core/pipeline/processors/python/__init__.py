@@ -1,5 +1,5 @@
 """
-Inicjalizacja procesorów Python.
+Initialization of Python processors.
 """
 from .base import PythonProcessor
 from .class_processor import PythonClassProcessor

@@ -1,5 +1,5 @@
 """
-Post-procesor dla walidacji składni.
+Post-processor for syntax validation.
 """
 import os
 
@@ -8,48 +8,48 @@ from patchcommander.core.pipeline import PatchResult, PostProcessor
 
 class SyntaxValidator(PostProcessor):
     """
-    Post-procesor walidujący składnię zmodyfikowanych plików.
+    Post-processor validating syntax of modified files.
     """
 
     def can_handle(self, operation):
         """
-        Ten post-procesor działa na poziomie PatchResult, więc ta metoda nie jest używana.
+        This post-processor works at the PatchResult level, so this method is not used.
         """
         return False
 
     def process(self, result: PatchResult) -> None:
         """
-        Waliduje składnię dla zmodyfikowanego pliku.
+        Validates syntax for the modified file.
 
         Args:
-            result: Wynik do zwalidowania
+            result: Result to validate
         """
-        # Pomijamy pliki oznaczone do usunięcia (pusta zawartość)
+        # Skip files marked for deletion (empty content)
         if not result.current_content:
             return
 
-        # Sprawdzamy rozszerzenie pliku
+        # Check the file extension
         _, ext = os.path.splitext(result.path)
         file_extension = ext.lower()[1:] if ext else ""
 
-        # Walidacja dla języka Python
+        # Validation for Python language
         if file_extension == "py":
             self._validate_python_syntax(result)
 
-        # Tutaj można dodać walidację dla innych języków (np. JavaScript)
+        # Here you can add validation for other languages (e.g. JavaScript)
 
     def _validate_python_syntax(self, result: PatchResult) -> None:
         """
-        Waliduje składnię dla kodu Python.
+        Validates syntax for Python code.
 
         Args:
-            result: Wynik do zwalidowania
+            result: Result to validate
         """
         try:
             compile(result.current_content, result.path, "exec")
         except SyntaxError as e:
-            error_message = f"Błąd składni Python w {result.path} wiersz {e.lineno}, pozycja {e.offset}: {e.msg}"
+            error_message = f"Python syntax error in {result.path} line {e.lineno}, position {e.offset}: {e.msg}"
             result.add_error(error_message)
 
-            # Opcjonalnie można przywrócić oryginalną zawartość
+            # Optionally you can restore the original content
             # result.current_content = result.original_content
