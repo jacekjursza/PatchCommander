@@ -81,10 +81,8 @@ class Pipeline:
         """
         if not self.global_preprocessor:
             raise ValueError('No global pre-processor set')
-
         operations = self.global_preprocessor.process(input_text)
         console.print(f'[blue]Detected {len(operations)} operations to process[/blue]')
-
         results: Dict[str, PatchResult] = {}
         for operation in operations:
             if operation.path not in results:
@@ -92,6 +90,7 @@ class Pipeline:
                 results[operation.path] = PatchResult(path=operation.path, original_content=original_content, current_content=original_content)
             results[operation.path].add_operation(operation)
 
+        # Apply all pre-processors to each operation
         for pre_processor in self.pre_processors:
             for operation in operations:
                 if pre_processor.can_handle(operation):
@@ -103,12 +102,14 @@ class Pipeline:
                         console.print(f'[bold red]{error_msg}[/bold red]')
                         operation.add_error(error_msg)
 
+        # Process operations only if they don't have errors
         for operation in operations:
             if not operation.has_errors():
                 ProcessorRegistry.process_operation(operation, results[operation.path])
 
+        # Apply all post-processors to each result
         for post_processor in self.post_processors:
-            for path, result in results.items():
+            for (path, result) in results.items():
                 try:
                     post_processor.process(result)
                     for operation in result.operations:
@@ -117,5 +118,4 @@ class Pipeline:
                     error_msg = f'Error in post-processor {post_processor.name}: {str(e)}'
                     console.print(f'[bold red]{error_msg}[/bold red]')
                     result.add_error(error_msg)
-
         return list(results.values())

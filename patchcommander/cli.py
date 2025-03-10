@@ -21,8 +21,13 @@ from patchcommander import APP_NAME, VERSION
 from patchcommander.core.config import config
 from patchcommander.core.pipeline.models import PatchResult
 from patchcommander.core.pipeline.pipeline import Pipeline
-from patchcommander.core.pipeline.post_processors.syntax_validator import SyntaxValidator
-from patchcommander.core.pipeline.pre_processors.custom import MarkdownCodeBlockCleaner
+from patchcommander.core.pipeline.post_processors.syntax_validator import (
+    SyntaxValidator,
+)
+from patchcommander.core.pipeline.pre_processors.custom import (
+    MarkdownCodeBlockCleaner,
+    XPathMethodCorrector,
+)
 from patchcommander.core.pipeline.pre_processors.custom.xpath_analyzer import XPathAnalyzer
 from patchcommander.core.pipeline.pre_processors.global_processor import TagParser
 from patchcommander.core.text_utils import normalize_line_endings
@@ -151,6 +156,7 @@ def get_input_data(input_file):
         console.print(f'[bold red]Error getting input: {e}[/bold red]')
         sys.exit(1)
 
+
 def setup_pipeline():
     """
     Configures the PatchCommander processing pipeline.
@@ -160,10 +166,21 @@ def setup_pipeline():
     """
     pipeline = Pipeline()
     pipeline.set_global_preprocessor(TagParser())
+
+    # Order of pre-processors is important
+    # MarkdownCodeBlockCleaner should run first to clean up code blocks
     pipeline.add_preprocessor(MarkdownCodeBlockCleaner())
+
+    # XPathAnalyzer must run before XPathMethodCorrector 
+    # as the corrector depends on target_type set by the analyzer
     pipeline.add_preprocessor(XPathAnalyzer())
+
+    # XPathMethodCorrector must run after XPathAnalyzer
+    pipeline.add_preprocessor(XPathMethodCorrector())
+
     pipeline.add_postprocessor(SyntaxValidator())
     return pipeline
+
 
 
 def generate_side_by_side_diff(old_lines, new_lines, file_path):

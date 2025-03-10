@@ -67,6 +67,9 @@ class ProcessorRegistry:
         return compatible_processors
 
     @classmethod
+
+
+    @classmethod
     def process_operation(cls, operation: PatchOperation, result: PatchResult) -> bool:
         """
         Processes the operation using the appropriate processor.
@@ -82,17 +85,23 @@ class ProcessorRegistry:
         """
         if not cls._initialized:
             cls._initialize()
+
         processors = cls.get_processors_for_operation(operation)
+
         if not processors:
             operation.add_error(f'No processor found for operation type {operation.name}')
             return False
+
+        # Log the selected processors
+        processor_names = [processor.__class__.__name__ for processor in processors]
+        console.print(f'[blue]Selected processors for operation: {", ".join(processor_names)}[/blue]')
+
         original_content = result.current_content
         for processor in processors:
             console.print(f'Trying processor: {processor.__class__.__name__}')
             try:
                 result.current_content = original_content
                 processor.process(operation, result)
-
                 if operation.file_extension == 'py' and result.current_content:
                     try:
                         compile(result.current_content, result.path, 'exec')
@@ -102,12 +111,10 @@ class ProcessorRegistry:
                     except SyntaxError as e:
                         error_msg = f'Syntax error after processing by {processor.__class__.__name__}: {e}'
                         console.print(f'[yellow]{error_msg}[/yellow]')
-
                         lines = result.current_content.split('\n')
                         if 0 <= e.lineno - 1 < len(lines):
                             error_line = lines[e.lineno - 1]
                             console.print(f'[yellow]Line with error: {error_line}[/yellow]')
-
                         operation.add_error(error_msg)
                         continue
                 else:
@@ -121,3 +128,4 @@ class ProcessorRegistry:
                 continue
         operation.add_error('All compatible processors failed')
         return False
+
