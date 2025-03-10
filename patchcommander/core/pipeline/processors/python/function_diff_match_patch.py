@@ -119,14 +119,11 @@ class DiffMatchPatchPythonFunctionProcessor(PythonProcessor, BaseDiffMatchPatchP
                 empty_lines_after += 1
                 pos += 1
 
-            console.print(f'[blue]Empty lines before function: {empty_lines_before}[/blue]')
-            console.print(f'[blue]Empty lines after function: {empty_lines_after}[/blue]')
-
             normalized_lines_before = '\n' * max(2, min(empty_lines_before, self.MAX_EMPTY_LINES))
             normalized_lines_after = '\n' * max(2, min(empty_lines_after, self.MAX_EMPTY_LINES))
 
             new_function = self._format_with_indent(operation.content, indent)
-            console.print(f'[blue]Formatted function with indentation:[/blue]\n{new_function}')
+
 
             prefix = result.current_content[:function_start - empty_lines_before]
             suffix = result.current_content[function_end + empty_lines_after:]

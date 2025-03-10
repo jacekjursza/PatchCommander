@@ -3,28 +3,30 @@ Command-line interface for PatchCommander v2.
 Utilizes refactored pipeline architecture.
 """
 import argparse
+import difflib
 import os
 import sys
-import difflib
 from typing import List, Dict
-from pathlib import Path
+
+import pyperclip
 import rich
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
 from rich.prompt import Prompt
 from rich.syntax import Syntax
-from rich import box
-import pyperclip
+from rich.table import Table
+
 from patchcommander import APP_NAME, VERSION
 from patchcommander.core.config import config
-from patchcommander.core.pipeline.pre_processors.custom import MarkdownCodeBlockCleaner
-from patchcommander.core.text_utils import normalize_line_endings
-from patchcommander.core.pipeline.pipeline import Pipeline
 from patchcommander.core.pipeline.models import PatchResult
-from patchcommander.core.pipeline.pre_processors.global_processor import TagParser
-from patchcommander.core.pipeline.pre_processors.custom.xpath_analyzer import XPathAnalyzer
+from patchcommander.core.pipeline.pipeline import Pipeline
 from patchcommander.core.pipeline.post_processors.syntax_validator import SyntaxValidator
+from patchcommander.core.pipeline.pre_processors.custom import MarkdownCodeBlockCleaner
+from patchcommander.core.pipeline.pre_processors.custom.xpath_analyzer import XPathAnalyzer
+from patchcommander.core.pipeline.pre_processors.global_processor import TagParser
+from patchcommander.core.text_utils import normalize_line_endings
+
 console = Console()
 
 def print_banner():
@@ -71,28 +73,20 @@ def find_resource_file(filename):
         pass
     return None
 
-def display_llm_docs(include_prompt=True):
+def display_llm_docs():
     """
     Displays documentation for LLMs.
 
-    Args:
-        include_prompt (bool): Whether to include the full prompt (PROMPT.md) or just the syntax instructions (FOR_LLM.md)
     """
     files_to_display = []
-    if include_prompt:
-        prompt_path = find_resource_file('PROMPT.md')
-        if prompt_path and os.path.exists(prompt_path):
-            files_to_display.append(('Developer Collaboration Prompt', prompt_path))
-        else:
-            console.print('[yellow]Warning: Could not find PROMPT.md file.[/yellow]')
     syntax_path = find_resource_file('FOR_LLM.md')
     if syntax_path and os.path.exists(syntax_path):
         files_to_display.append(('Tag Syntax Guide for LLMs', syntax_path))
     else:
         console.print('[yellow]Warning: Could not find FOR_LLM.md file.[/yellow]')
     if not files_to_display:
-        console.print('[bold red]Error: Could not find required documentation files.[/bold red]')
-        console.print('[yellow]Make sure PROMPT.md and FOR_LLM.md are installed with the package.[/yellow]')
+        console.print('[bold red]Error: Could not find required documentation file.[/bold red]')
+        console.print('[yellow]Make sure FOR_LLM.md is installed with the package.[/yellow]')
         return
     for (title, file_path) in files_to_display:
         try:
@@ -120,7 +114,6 @@ def setup_argument_parser():
     parser.add_argument('--reset-config', action='store_true', help='Reset configuration to defaults')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode with extra logging')
     parser.add_argument('--diagnose', action='store_true', help='Only diagnose paths without applying changes')
-    parser.add_argument('--prompt', action='store_true', help='Display full prompt with instructions for LLMs (PROMPT.md + FOR_LLM.md)')
     parser.add_argument('--syntax', action='store_true', help='Display PatchCommander tag syntax guide for LLMs (FOR_LLM.md)')
     return parser
 
@@ -414,13 +407,9 @@ def main():
         print_banner()
         config.reset()
         return 0
-    if args.prompt:
-        print_banner()
-        display_llm_docs(include_prompt=True)
-        return 0
     if args.syntax:
         print_banner()
-        display_llm_docs(include_prompt=False)
+        display_llm_docs()
         return 0
     print_banner()
     if args.normalize_only and args.input_file:
