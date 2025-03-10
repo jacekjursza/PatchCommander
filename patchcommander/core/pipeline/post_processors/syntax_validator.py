@@ -3,6 +3,8 @@ Post-processor for syntax validation.
 """
 import os
 
+import rich
+
 from patchcommander.core.pipeline import PatchResult, PostProcessor
 
 
@@ -49,6 +51,7 @@ class SyntaxValidator(PostProcessor):
             compile(result.current_content, result.path, "exec")
         except SyntaxError as e:
             error_message = f"Python syntax error in {result.path} line {e.lineno}, position {e.offset}: {e.msg}"
+            rich.print(result.current_content)
             result.add_error(error_message)
 
             # Optionally you can restore the original content

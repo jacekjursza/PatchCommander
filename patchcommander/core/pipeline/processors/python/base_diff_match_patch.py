@@ -4,7 +4,6 @@ Base class for processors using the diff-match-patch algorithm.
 import re
 from rich.console import Console
 console = Console()
-
 try:
     from diff_match_patch import diff_match_patch
     DMP_AVAILABLE = True
@@ -35,28 +34,82 @@ class BaseDiffMatchPatchProcessor:
     def _format_with_indent(self, content: str, base_indent: str, body_indent: str=None) -> str:
         """
         Formats code with appropriate indentation.
+        
+        Args:
+            content: Code content to format
+            base_indent: Base indentation for the first line
+            body_indent: Indentation for the rest of the code (defaults to base_indent + 4 spaces)
+            
+        Returns:
+            Formatted code with proper indentation
         """
         if body_indent is None:
             body_indent = base_indent + '    '
+        
+        # Handle decorators separately
         lines = content.strip().splitlines()
         if not lines:
             return ''
+        
+        # Extract decorators
+        decorators = []
+        remaining_lines = []
+        
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            if line.startswith('@'):
+                decorators.append(line)
+                i += 1
+            else:
+                remaining_lines = lines[i:]
+                break
+        
+        # If no decorators found, use the original method
+        if not decorators:
+            return self._format_without_decorators(content, base_indent, body_indent)
+        
+        # Format the function/method part
+        remaining_content = '\n'.join(remaining_lines)
+        formatted_function = self._format_without_decorators(remaining_content, base_indent, body_indent)
+        
+        # Combine decorators with the formatted function
+        formatted_decorators = '\n'.join(f"{base_indent}{decorator}" for decorator in decorators)
+        
+        # Join without adding extra newline if formatted_function already starts with indentation
+        if formatted_function.startswith(base_indent):
+            return f"{formatted_decorators}\n{formatted_function}"
+        else:
+            # Fallback - shouldn't normally happen due to _format_without_decorators implementation
+            return f"{formatted_decorators}\n{base_indent}{formatted_function}"
+
+    def _format_without_decorators(self, content: str, base_indent: str, body_indent: str) -> str:
+        """
+        Original formatting logic without handling decorators.
+        """
+        lines = content.strip().splitlines()
+        if not lines:
+            return ''
+        
         original_body_indent = None
         if len(lines) > 1:
             for line in lines[1:]:
                 if line.strip():
                     original_body_indent = line[:len(line) - len(line.lstrip())]
                     break
+        
         formatted = [f'{base_indent}{lines[0]}']
         for i, line in enumerate(lines[1:], 1):
             if not line.strip():
                 formatted.append('')
                 continue
-            if original_body_indent:
-                line_without_indent = line[len(original_body_indent):] if line.startswith(original_body_indent) else line.lstrip()
+            
+            if original_body_indent and line.startswith(original_body_indent):
+                line_without_indent = line[len(original_body_indent):]
                 formatted.append(f'{body_indent}{line_without_indent}')
             else:
                 formatted.append(f'{body_indent}{line.lstrip()}')
+                
         return '\n'.join(formatted)
 
     def _normalize_empty_lines(self, text: str, count: int=None) -> str:
@@ -99,7 +152,7 @@ class BaseDiffMatchPatchProcessor:
         indent = match.group(2)
         lines = content[function_start:].splitlines(keepends=True)
         function_lines = []
-        for i, line in enumerate(lines):
+        for (i, line) in enumerate(lines):
             if i == 0:
                 function_lines.append(line)
             elif line.strip() == '':

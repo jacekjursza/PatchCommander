@@ -41,15 +41,12 @@ packages = [
     "patchcommander.core",
     "patchcommander.parsers",
     "patchcommander.operations",
-    "patchcommander.core.tag_processors",
     "patchcommander.core.pipeline",
-    "patchcommander.core.pipeline.models",
     "patchcommander.core.pipeline.processors",
     "patchcommander.core.pipeline.pre_processors",
     "patchcommander.core.pipeline.post_processors",
-    "patchcommander.core.pipeline.utils",
     "patchcommander.core.utils",
 ]
 
 [tool.setuptools.package-data]
-patchcommander = ["PROMPT.md", "FOR_LLM.md"]
+patchcommander = ["FOR_LLM.md"]
