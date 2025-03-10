@@ -125,42 +125,6 @@ def function_name(args):
     # Updated function implementation
 </FILE>
 ```
-
-### CLASS
-
-Update or add a class to a file:
-
-```
-<CLASS path="path/to/file.py" class="ClassName">
-class ClassName:
-    # Class content goes here
-</CLASS>
-```
-
-### FUNCTION
-
-Update or add a standalone function to a file:
-
-```
-<FUNCTION path="path/to/file.py">
-def function_name(arg1, arg2):
-    # Function body goes here
-    return result
-</FUNCTION>
-```
-
-### METHOD
-
-Update or add a method to a class:
-
-```
-<METHOD path="path/to/file.py" class="ClassName">
-def method_name(self, arg1, arg2):
-    # Method body goes here
-    return result
-</METHOD>
-```
-
 ### OPERATION
 
 Perform file operations:
