@@ -1,46 +1,48 @@
 """
-Procesor dla operacji OPERATION.
+Processor for the OPERATION tag.
 """
 import os
 from rich.console import Console
 from .. import Processor, PatchOperation, PatchResult
 from ....parsers.python_parser import PythonParser
 from ....parsers.javascript_parser import JavaScriptParser
+
 console = Console()
 
-# Dodajemy dekorator register_processor
+# Adding the register_processor decorator
 from .decorator import register_processor
+
 
 @register_processor(priority=10)
 class OperationProcessor(Processor):
     """
-    Procesor dla tagu OPERATION.
-    Obsługuje operacje na plikach, takie jak move_file, delete_file, delete_method.
+    Processor for the OPERATION tag.
+    Handles file operations such as move_file, delete_file, delete_method.
     """
 
     def can_handle(self, operation: PatchOperation) -> bool:
         """
-        Sprawdza czy procesor może obsłużyć operację.
+        Checks if the processor can handle the operation.
 
         Args:
-            operation: Operacja do sprawdzenia
+            operation: The operation to check.
 
         Returns:
-            bool: True jeśli to operacja OPERATION
+            bool: True if it's an OPERATION operation.
         """
         return operation.name == 'OPERATION'
 
     def process(self, operation: PatchOperation, result: PatchResult) -> None:
         """
-        Przetwarza operację OPERATION.
+        Processes the OPERATION operation.
 
         Args:
-            operation: Operacja do przetworzenia
-            result: Wynik do zaktualizowania
+            operation: The operation to process.
+            result: The result to update.
         """
         action = operation.action
         if not action:
-            operation.add_error('Brak akcji dla operacji OPERATION')
+            operation.add_error('No action specified for OPERATION')
             return
         if action == 'move_file':
             self._handle_move_file(operation, result)
@@ -49,52 +51,52 @@ class OperationProcessor(Processor):
         elif action == 'delete_method':
             self._handle_delete_method(operation, result)
         else:
-            operation.add_error(f'Nieznana akcja: {action}')
+            operation.add_error(f'Unknown action: {action}')
 
     def _handle_move_file(self, operation: PatchOperation, result: PatchResult) -> None:
         """
-        Obsługuje operację move_file.
+        Handles the move_file operation.
 
         Args:
-            operation: Operacja do przetworzenia
-            result: Wynik do zaktualizowania
+            operation: The operation to process.
+            result: The result to update.
         """
         source = operation.attributes.get('source')
         target = operation.attributes.get('target')
         if not source or not target:
-            operation.add_error("Operacja move_file wymaga atrybutów 'source' i 'target'")
+            operation.add_error("move_file operation requires 'source' and 'target' attributes")
             return
         if result.path == source:
             result.current_content = ''
 
     def _handle_delete_file(self, operation: PatchOperation, result: PatchResult) -> None:
         """
-        Obsługuje operację delete_file.
+        Handles the delete_file operation.
 
         Args:
-            operation: Operacja do przetworzenia
-            result: Wynik do zaktualizowania
+            operation: The operation to process.
+            result: The result to update.
         """
         source = operation.attributes.get('source')
         if not source:
-            operation.add_error("Operacja delete_file wymaga atrybutu 'source'")
+            operation.add_error("delete_file operation requires 'source' attribute")
             return
         if result.path == source:
             result.current_content = ''
 
     def _handle_delete_method(self, operation: PatchOperation, result: PatchResult) -> None:
         """
-        Obsługuje operację delete_method.
+        Handles the delete_method operation.
 
         Args:
-            operation: Operacja do przetworzenia
-            result: Wynik do zaktualizowania
+            operation: The operation to process.
+            result: The result to update.
         """
         source = operation.attributes.get('source')
         class_name = operation.attributes.get('class')
         method_name = operation.attributes.get('method')
         if not source or not class_name or (not method_name):
-            operation.add_error("Operacja delete_method wymaga atrybutów 'source', 'class' i 'method'")
+            operation.add_error("delete_method operation requires 'source', 'class', and 'method' attributes")
             return
         if result.path != source:
             return
@@ -105,16 +107,16 @@ class OperationProcessor(Processor):
         elif file_extension in ['js', 'jsx', 'ts', 'tsx']:
             self._delete_javascript_method(result, class_name, method_name)
         else:
-            operation.add_error(f'Nieobsługiwane rozszerzenie pliku: {file_extension}')
+            operation.add_error(f'Unsupported file extension: {file_extension}')
 
     def _delete_python_method(self, result: PatchResult, class_name: str, method_name: str) -> None:
         """
-        Usuwa metodę z klasy Python.
+        Deletes a method from a Python class.
 
         Args:
-            result: Wynik do zaktualizowania
-            class_name: Nazwa klasy
-            method_name: Nazwa metody
+            result: The result to update.
+            class_name: The class name.
+            method_name: The method name.
         """
         parser = PythonParser()
         tree = parser.parse(result.current_content)
@@ -137,12 +139,12 @@ class OperationProcessor(Processor):
 
     def _delete_javascript_method(self, result: PatchResult, class_name: str, method_name: str) -> None:
         """
-        Usuwa metodę z klasy JavaScript.
+        Deletes a method from a JavaScript class.
 
         Args:
-            result: Wynik do zaktualizowania
-            class_name: Nazwa klasy
-            method_name: Nazwa metody
+            result: The result to update.
+            class_name: The class name.
+            method_name: The method name.
         """
         parser = JavaScriptParser()
         tree = parser.parse(result.current_content)

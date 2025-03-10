@@ -1,5 +1,5 @@
 """
-Główny pipeline do przetwarzania operacji PatchCommander.
+Main pipeline for processing PatchCommander operations.
 """
 import os
 from typing import List, Dict, Optional
@@ -14,51 +14,51 @@ console = Console()
 
 class Pipeline:
     """
-    Główny pipeline do przetwarzania operacji PatchCommander.
+    Main pipeline for processing PatchCommander operations.
     """
 
     def __init__(self):
-        """Inicjalizacja pipeline z pustymi listami procesorów."""
+        """Initializes the pipeline with empty lists of processors."""
         self.global_preprocessor: Optional[GlobalPreProcessor] = None
         self.pre_processors: List[PreProcessor] = []
         self.post_processors: List[PostProcessor] = []
 
     def set_global_preprocessor(self, preprocessor: GlobalPreProcessor) -> None:
         """
-        Ustawia globalny pre-procesor.
+        Sets the global pre-processor.
 
         Args:
-            preprocessor: Globalny pre-procesor
+            preprocessor: The global pre-processor
         """
         self.global_preprocessor = preprocessor
 
     def add_preprocessor(self, preprocessor: PreProcessor) -> None:
         """
-        Dodaje pre-procesor do pipeline.
+        Adds a pre-processor to the pipeline.
 
         Args:
-            preprocessor: Pre-procesor do dodania
+            preprocessor: The pre-processor to add
         """
         self.pre_processors.append(preprocessor)
 
     def add_postprocessor(self, postprocessor: PostProcessor) -> None:
         """
-        Dodaje post-procesor do pipeline.
+        Adds a post-processor to the pipeline.
 
         Args:
-            postprocessor: Post-procesor do dodania
+            postprocessor: The post-processor to add
         """
         self.post_processors.append(postprocessor)
 
     def _get_file_content(self, path: str) -> str:
         """
-        Pobiera zawartość pliku, jeśli istnieje.
+        Gets the content of a file, if it exists.
 
         Args:
-            path: Ścieżka do pliku
+            path: The path to the file
 
         Returns:
-            str: Zawartość pliku lub pusty string
+            str: The content of the file or an empty string
         """
         if not os.path.exists(path):
             return ''
@@ -66,24 +66,24 @@ class Pipeline:
             with open(path, 'r', encoding='utf-8') as file:
                 return file.read()
         except Exception as e:
-            console.print(f"[bold red]Błąd odczytu pliku '{path}': {e}[/bold red]")
+            console.print(f"[bold red]Error reading file '{path}': {e}[/bold red]")
             return ''
 
     def run(self, input_text: str) -> List[PatchResult]:
         """
-        Uruchamia pipeline na tekście wejściowym.
+        Runs the pipeline on the input text.
 
         Args:
-            input_text: Tekst wejściowy zawierający tagi
+            input_text: The input text containing tags
 
         Returns:
-            List[PatchResult]: Lista wyników patch
+            List[PatchResult]: A list of patch results
         """
         if not self.global_preprocessor:
-            raise ValueError('Nie ustawiono globalnego pre-procesora')
+            raise ValueError('No global pre-processor set')
 
         operations = self.global_preprocessor.process(input_text)
-        console.print(f'[blue]Wykryto {len(operations)} operacji do przetworzenia[/blue]')
+        console.print(f'[blue]Detected {len(operations)} operations to process[/blue]')
 
         results: Dict[str, PatchResult] = {}
         for operation in operations:
@@ -99,7 +99,7 @@ class Pipeline:
                         pre_processor.process(operation)
                         operation.add_preprocessor(pre_processor.name)
                     except Exception as e:
-                        error_msg = f'Błąd w pre-procesorze {pre_processor.name}: {str(e)}'
+                        error_msg = f'Error in pre-processor {pre_processor.name}: {str(e)}'
                         console.print(f'[bold red]{error_msg}[/bold red]')
                         operation.add_error(error_msg)
 
@@ -114,7 +114,7 @@ class Pipeline:
                     for operation in result.operations:
                         operation.add_postprocessor(post_processor.name)
                 except Exception as e:
-                    error_msg = f'Błąd w post-procesorze {post_processor.name}: {str(e)}'
+                    error_msg = f'Error in post-processor {post_processor.name}: {str(e)}'
                     console.print(f'[bold red]{error_msg}[/bold red]')
                     result.add_error(error_msg)
 

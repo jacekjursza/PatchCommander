@@ -1,5 +1,5 @@
 """
-Globalny pre-procesor parsujący tagi z wejściowego tekstu.
+Global pre-processor parsing tags from the input text.
 """
 import re
 import os
@@ -13,30 +13,30 @@ console = Console()
 
 class TagParser(GlobalPreProcessor):
     """
-    Globalny pre-procesor parsujący tagi PatchCommander z wejściowego tekstu.
+    Global pre-processor parsing PatchCommander tags from the input text.
     """
 
     def __init__(self):
-        """Inicjalizacja parsera."""
+        """Initializes the parser."""
         self.valid_operations = {"FILE", "OPERATION"}
 
     def process(self, input_text: str) -> List[PatchOperation]:
         """
-        Parsuje tagi z tekstu wejściowego i tworzy listę operacji.
+        Parses tags from the input text and creates a list of operations.
 
         Args:
-            input_text: Tekst wejściowy zawierający tagi
+            input_text: The input text containing tags
 
         Returns:
-            List[PatchOperation]: Lista operacji do wykonania
+            List[PatchOperation]: A list of operations to perform
         """
-        # Normalizacja tekstu
+        # Normalize text
         normalized_text = normalize_line_endings(input_text)
 
-        # Parsowanie tagów
+        # Parse tags
         operations = []
 
-        # Wzorzec dla tagów FILE i OPERATION
+        # Pattern for FILE and OPERATION tags
         tag_pattern = re.compile(r'<(FILE|OPERATION)(\s+[^>]*)?(?:>(.*?)</\1\s*>|/>)', re.DOTALL)
 
         for match in tag_pattern.finditer(normalized_text):
@@ -44,35 +44,35 @@ class TagParser(GlobalPreProcessor):
             attr_str = match.group(2) or ""
             content = match.group(3) or ""
 
-            # Parsowanie atrybutów
+            # Parse attributes
             attributes = self._parse_attributes(attr_str)
 
-            # Sprawdzenie wymaganych atrybutów
+            # Check for required attributes
             if tag_type == "FILE":
                 if "path" not in attributes:
-                    console.print("[bold red]Tag FILE wymaga atrybutu 'path'.[/bold red]")
+                    console.print("[bold red]FILE tag requires a 'path' attribute.[/bold red]")
                     continue
             elif tag_type == "OPERATION":
                 if "action" not in attributes:
-                    console.print("[bold red]Tag OPERATION wymaga atrybutu 'action'.[/bold red]")
+                    console.print("[bold red]OPERATION tag requires an 'action' attribute.[/bold red]")
                     continue
 
-                # Sprawdzenie specyficznych wymagań dla różnych akcji
+                # Check for specific requirements for different actions
                 action = attributes["action"]
                 if action == "move_file":
                     if "source" not in attributes or "target" not in attributes:
-                        console.print("[bold red]Operacja move_file wymaga atrybutów 'source' i 'target'.[/bold red]")
+                        console.print("[bold red]move_file operation requires 'source' and 'target' attributes.[/bold red]")
                         continue
                 elif action == "delete_file":
                     if "source" not in attributes:
-                        console.print("[bold red]Operacja delete_file wymaga atrybutu 'source'.[/bold red]")
+                        console.print("[bold red]delete_file operation requires a 'source' attribute.[/bold red]")
                         continue
                 elif action == "delete_method":
                     if "source" not in attributes or "class" not in attributes or "method" not in attributes:
-                        console.print("[bold red]Operacja delete_method wymaga atrybutów 'source', 'class' i 'method'.[/bold red]")
+                        console.print("[bold red]delete_method operation requires 'source', 'class', and 'method' attributes.[/bold red]")
                         continue
 
-            # Utworzenie operacji
+            # Create operation
             operation = PatchOperation(
                 name=tag_type,
                 path=attributes.get("path", attributes.get("source", "")),
@@ -82,7 +82,7 @@ class TagParser(GlobalPreProcessor):
                 attributes=attributes
             )
 
-            # Dodanie rozszerzenia pliku
+            # Add file extension
             if operation.path:
                 _, ext = os.path.splitext(operation.path)
                 operation.file_extension = ext.lower()[1:] if ext else ""
@@ -93,13 +93,13 @@ class TagParser(GlobalPreProcessor):
 
     def _parse_attributes(self, attr_str: str) -> Dict[str, str]:
         """
-        Parsuje atrybuty z tekstu.
+        Parses attributes from text.
 
         Args:
-            attr_str: Tekst zawierający atrybuty w formacie HTML-like
+            attr_str: Text containing HTML-like attributes
 
         Returns:
-            Dict[str, str]: Słownik atrybutów
+            Dict[str, str]: Dictionary of attributes
         """
         if not attr_str:
             return {}

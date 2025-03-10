@@ -1,21 +1,21 @@
 """
-Dekorator do rejestracji procesorów.
+Decorator for registering processors.
 """
 from typing import Type, Callable
 
 
 def register_processor(priority: int = 100) -> Callable:
     """
-    Dekorator do rejestracji procesora.
+    Decorator for registering a processor.
 
     Args:
-        priority: Priorytet procesora (niższy = wyższy priorytet)
+        priority: Processor priority (lower = higher priority)
 
     Returns:
-        Funkcja dekoratora
+        The decorator function
     """
     def decorator(processor_class):
-        # Import tutaj, aby uniknąć cyklicznych importów
+        # Import here to avoid circular imports
         from .registry import ProcessorRegistry
         ProcessorRegistry.register_processor(processor_class, priority)
         return processor_class

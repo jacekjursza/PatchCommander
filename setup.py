@@ -16,7 +16,7 @@ setup(
         'tree-sitter-python>=0.20.0',
         'tree-sitter-javascript>=0.20.0',
         'diff-match-patch>=20200713',
-        'textual>=0.14.0',  # Required for interactive diff viewer
+        'textual>=0.14.0',  # Required for interactive diff viewer and config UI
     ],
     entry_points={
         'console_scripts': [

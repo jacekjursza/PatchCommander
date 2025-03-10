@@ -172,6 +172,7 @@ def setup_pipeline():
     pipeline.add_postprocessor(SyntaxValidator())
     return pipeline
 
+
 def generate_side_by_side_diff(old_lines, new_lines, file_path):
     """
     Generates a side-by-side diff view.
@@ -190,7 +191,7 @@ def generate_side_by_side_diff(old_lines, new_lines, file_path):
     table = Table(show_header=True, header_style='bold', box=box.SIMPLE)
     table.add_column(f'Current: {file_path}', style='cyan', width=None)
     table.add_column(f'New: {file_path}', style='green', width=None)
-    max_context_lines = config.get('max_diff_context_lines', 3)
+    max_context_lines = 3  # Using fixed value instead of config
     for (tag, i1, i2, j1, j2) in matcher.get_opcodes():
         if tag == 'equal':
             context_lines = min(max_context_lines, i2 - i1)
@@ -209,15 +210,12 @@ def generate_side_by_side_diff(old_lines, new_lines, file_path):
                 table.add_row(old_line, new_line)
         elif tag == 'delete':
             for line_num in range(i1, i2):
-                table.add_row(
-                    Text(old_lines[line_num], style="red"), Text("", style="")
-                )
-        elif tag == "insert":
+                table.add_row(Text(old_lines[line_num], style='red'), Text('', style=''))
+        elif tag == 'insert':
             for line_num in range(j1, j2):
-                table.add_row(
-                    Text("", style=""), Text(new_lines[line_num], style="green")
-                )
+                table.add_row(Text('', style=''), Text(new_lines[line_num], style='green'))
     return table
+
 
 
 def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
@@ -373,6 +371,7 @@ def apply_changes(results: List[PatchResult], approvals: Dict[str, bool]) -> int
                 console.print(f'[bold red]Error applying changes to {result.path}: {e}[/bold red]')
     return modified_count
 
+
 def main():
     """
     Main function of the program.
@@ -387,7 +386,13 @@ def main():
         return 0
     if args.config:
         print_banner()
-        print_config()
+        try:
+            from patchcommander.config_ui import run_config_ui
+            run_config_ui()
+        except ImportError as e:
+            console.print(f"[bold red]Error loading configuration UI: {e}[/bold red]")
+            console.print("[yellow]Falling back to simple configuration display.[/yellow]")
+            print_config()
         return 0
     if args.set:
         print_banner()
@@ -449,3 +454,4 @@ def main():
         console.print(f'[bold red]Error: {str(e)}[/bold red]')
         return 1
     return 0
+

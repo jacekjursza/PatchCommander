@@ -15,9 +15,7 @@ DEFAULT_CONFIG = {
     'default_backup_path': None,
     'auto_create_dirs': True,
     'syntax_validation': True,
-    'max_diff_context_lines': 3,
     'default_yes_to_all': False,
-    'tag_types': ['FILE', 'CLASS', 'METHOD', 'FUNCTION', 'OPERATION'],
     'debug_mode': False
 }
 

@@ -1,8 +1,8 @@
 """
-Procesor dla klas Python.
+Processor for Python classes.
 """
 from rich.console import Console
-# Zmieniamy import dekoratora na import z właściwego modułu
+# We are changing the decorator import to import from the correct module
 from ..decorator import register_processor
 from .base import PythonProcessor
 from ...models import PatchOperation, PatchResult
@@ -11,37 +11,37 @@ console = Console()
 @register_processor(priority=10)
 class PythonClassProcessor(PythonProcessor):
     """
-    Procesor obsługujący operacje na klasach Python.
+    Processor handling operations on Python classes.
     """
 
     def can_handle(self, operation: PatchOperation) -> bool:
         """
-        Sprawdza czy procesor może obsłużyć operację.
+        Checks if the processor can handle the operation.
 
         Args:
-            operation: Operacja do sprawdzenia
+            operation: The operation to check
 
         Returns:
-            bool: True jeśli to operacja na klasie Python
+            bool: True if it's a Python class operation
         """
         return super().can_handle(operation) and operation.attributes.get('target_type') == 'class'
 
     def process(self, operation: PatchOperation, result: PatchResult) -> None:
         """
-        Przetwarza operację na klasie Python.
+        Processes the operation on a Python class.
 
         Args:
-            operation: Operacja do przetworzenia
-            result: Wynik do zaktualizowania
+            operation: The operation to process
+            result: The result to update
         """
         class_name = operation.attributes.get('class_name')
         if not class_name:
-            operation.add_error('Brak nazwy klasy')
+            operation.add_error('Class name is missing')
             return
-        console.print(f'[blue]PythonClassProcessor: Przetwarzanie klasy {class_name}[/blue]')
+        console.print(f'[blue]PythonClassProcessor: Processing class {class_name}[/blue]')
         if not result.current_content:
             result.current_content = operation.content
-            console.print(f'[green]Utworzono nowy plik z klasą {class_name}[/green]')
+            console.print(f'[green]Created a new file with class {class_name}[/green]')
             return
         parser = self._get_parser()
         tree = parser.parse(result.current_content)
@@ -59,8 +59,8 @@ class PythonClassProcessor(PythonProcessor):
             end_byte = target_class.ts_node.end_byte
             new_content = result.current_content[:start_byte] + operation.content + result.current_content[end_byte:]
             result.current_content = new_content
-            console.print(f'[green]Zaktualizowano klasę {class_name}[/green]')
+            console.print(f'[green]Updated class {class_name}[/green]')
         else:
             separator = '\n\n' if result.current_content and (not result.current_content.endswith('\n\n')) else ''
             result.current_content = result.current_content + separator + operation.content
-            console.print(f'[green]Dodano nową klasę {class_name}[/green]')
+            console.print(f'[green]Added a new class {class_name}[/green]')

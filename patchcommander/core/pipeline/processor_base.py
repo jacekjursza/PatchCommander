@@ -1,5 +1,5 @@
 """
-Bazowe klasy dla procesorów w pipeline.
+Base classes for processors in the pipeline.
 """
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
@@ -7,90 +7,90 @@ from .models import PatchOperation, PatchResult
 
 class BaseProcessor(ABC):
     """
-    Bazowa klasa dla wszystkich procesorów.
+    Base class for all processors.
     """
-    
+
     @property
     def name(self) -> str:
         """
-        Nazwa procesora używana w logach i historii operacji.
-        Domyślnie to nazwa klasy, ale można nadpisać.
+        The name of the processor used in logs and operation history.
+        Defaults to the class name, but can be overridden.
         """
         return self.__class__.__name__
-        
+
     @abstractmethod
     def can_handle(self, operation: PatchOperation) -> bool:
         """
-        Sprawdza czy procesor może obsłużyć daną operację.
-        
+        Checks if the processor can handle the given operation.
+
         Args:
-            operation: Operacja do sprawdzenia
-            
+            operation: The operation to check
+
         Returns:
-            bool: True jeśli procesor może obsłużyć operację
+            bool: True if the processor can handle the operation
         """
         pass
-        
+
 class PreProcessor(BaseProcessor):
     """
-    Bazowa klasa dla pre-procesorów, które przygotowują operacje do przetworzenia.
+    Base class for pre-processors, which prepare operations for processing.
     """
-    
+
     @abstractmethod
     def process(self, operation: PatchOperation) -> None:
         """
-        Przetwarza operację.
-        
+        Processes the operation.
+
         Args:
-            operation: Operacja do przetworzenia
+            operation: The operation to process
         """
         pass
-        
+
 class Processor(BaseProcessor):
     """
-    Bazowa klasa dla procesorów, które wykonują operacje na zawartości plików.
+    Base class for processors, which perform operations on file contents.
     """
-    
+
     @abstractmethod
     def process(self, operation: PatchOperation, result: PatchResult) -> None:
         """
-        Przetwarza operację i aktualizuje wynik.
-        
+        Processes the operation and updates the result.
+
         Args:
-            operation: Operacja do przetworzenia
-            result: Wynik do zaktualizowania
+            operation: The operation to process
+            result: The result to update
         """
         pass
-        
+
 class PostProcessor(BaseProcessor):
     """
-    Bazowa klasa dla post-procesorów, które wykonują operacje na wynikach.
+    Base class for post-processors, which perform operations on the results.
     """
-    
+
     @abstractmethod
     def process(self, result: PatchResult) -> None:
         """
-        Przetwarza wynik.
-        
+        Processes the result.
+
         Args:
-            result: Wynik do przetworzenia
+            result: The result to process
         """
         pass
-        
+
 class GlobalPreProcessor(ABC):
     """
-    Specjalna klasa dla globalnego pre-procesora, który przetwarza cały tekst wejściowy.
+    Special class for a global pre-processor, which processes the entire input text.
     """
-    
+
     @abstractmethod
     def process(self, input_text: str) -> List[PatchOperation]:
         """
-        Przetwarza tekst wejściowy i generuje listę operacji.
-        
+        Processes the input text and generates a list of operations.
+
         Args:
-            input_text: Tekst wejściowy
-            
+            input_text: The input text
+
         Returns:
-            List[PatchOperation]: Lista operacji do wykonania
+            List[PatchOperation]: The list of operations to perform
         """
         pass

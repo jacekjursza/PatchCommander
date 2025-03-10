@@ -6,7 +6,6 @@ that follow a specific tag-based syntax. By instructing LLMs to format their cod
 suggestions using PatchCommander's tags, developers can easily and reliably
 apply AI-generated changes across their codebase.
 """
-
 VERSION = '1.1.5'
 APP_NAME = 'PatchCommander'
 
@@ -15,6 +14,13 @@ def _get_version():
     return VERSION
 
 __version__ = _get_version()
-
-# Import main function for easier invocation
 from .cli import main
+
+# Make config_ui available for import
+# Will be dynamically imported when needed to avoid loading Textual unnecessarily
+try:
+    from .config_ui import run_config_ui
+except ImportError:
+    # Textual might not be installed or available
+    # This is fine, as we'll handle the fallback in cli.py
+    pass

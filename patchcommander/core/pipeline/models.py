@@ -1,6 +1,6 @@
 """
-Modele danych dla pipeline'u PatchCommander.
-Definiuje struktury używane w całym procesie przetwarzania.
+Data models for the PatchCommander pipeline.
+Defines the structures used throughout the processing.
 """
 from typing import List, Optional, Dict
 from dataclasses import dataclass, field
@@ -8,20 +8,20 @@ from dataclasses import dataclass, field
 @dataclass
 class PatchOperation:
     """
-    Reprezentuje pojedynczą operację modyfikacji kodu.
+    Represents a single code modification operation.
 
-    Atrybuty:
-        name: Nazwa operacji ("FILE" lub "OPERATION")
-        path: Ścieżka do pliku
-        xpath: Opcjonalny XPath wskazujący na element w pliku
-        content: Treść do wstawienia/modyfikacji
-        action: Opcjonalna akcja dla OPERATION (np. "move_file", "delete_file")
-        file_extension: Rozszerzenie pliku (wykryte automatycznie)
-        attributes: Dodatkowe atrybuty z tagu
-        preprocessors: Lista preprocessorów, przez które przeszła operacja
-        processors: Lista procesorów, przez które przeszła operacja
-        postprocessors: Lista postprocessorów, przez które przeszła operacja
-        errors: Lista błędów napotkanych podczas przetwarzania
+    Attributes:
+        name: Name of the operation ("FILE" or "OPERATION")
+        path: Path to the file
+        xpath: Optional XPath pointing to an element in the file
+        content: Content to be inserted/modified
+        action: Optional action for OPERATION (e.g., "move_file", "delete_file")
+        file_extension: File extension (automatically detected)
+        attributes: Additional attributes from the tag
+        preprocessors: List of preprocessors the operation has passed through
+        processors: List of processors the operation has passed through
+        postprocessors: List of postprocessors the operation has passed through
+        errors: List of errors encountered during processing
     """
     name: str
     path: str
@@ -36,37 +36,37 @@ class PatchOperation:
     errors: List[str] = field(default_factory=list)
 
     def add_preprocessor(self, name: str) -> None:
-        """Dodaje nazwę preprocessora do historii."""
+        """Adds the name of a preprocessor to the history."""
         self.preprocessors.append(name)
 
     def add_processor(self, name: str) -> None:
-        """Dodaje nazwę procesora do historii."""
+        """Adds the name of a processor to the history."""
         self.processors.append(name)
 
     def add_postprocessor(self, name: str) -> None:
-        """Dodaje nazwę postprocessora do historii."""
+        """Adds the name of a postprocessor to the history."""
         self.postprocessors.append(name)
 
     def add_error(self, error: str) -> None:
-        """Dodaje błąd do listy błędów."""
+        """Adds an error to the error list."""
         self.errors.append(error)
 
     def has_errors(self) -> bool:
-        """Sprawdza czy są błędy."""
+        """Checks if there are any errors."""
         return len(self.errors) > 0
 
 @dataclass
 class PatchResult:
     """
-    Reprezentuje wynik patchowania pliku.
+    Represents the result of patching a file.
 
-    Atrybuty:
-        path: Ścieżka do pliku
-        original_content: Oryginalna zawartość pliku
-        current_content: Aktualna zawartość po wszystkich operacjach
-        operations: Lista operacji wykonanych na pliku
-        approved: Czy zmiany zostały zatwierdzone
-        errors: Lista błędów napotkanych podczas przetwarzania
+    Attributes:
+        path: Path to the file
+        original_content: Original content of the file
+        current_content: Current content after all operations
+        operations: List of operations performed on the file
+        approved: Whether the changes have been approved
+        errors: List of errors encountered during processing
     """
     path: str
     original_content: str
@@ -76,17 +76,17 @@ class PatchResult:
     errors: List[str] = field(default_factory=list)
 
     def add_operation(self, operation: PatchOperation) -> None:
-        """Dodaje operację do listy wykonanych operacji."""
+        """Adds an operation to the list of performed operations."""
         self.operations.append(operation)
 
     def add_error(self, error: str) -> None:
-        """Dodaje błąd do listy błędów."""
+        """Adds an error to the error list."""
         self.errors.append(error)
 
     def has_errors(self) -> bool:
-        """Sprawdza czy są błędy."""
+        """Checks if there are any errors."""
         return len(self.errors) > 0
 
     def clear_errors(self) -> None:
-        """Czyści listę błędów."""
+        """Clears the error list."""
         self.errors = []
