@@ -90,7 +90,7 @@ def display_llm_docs():
     else:
         console.print('[yellow]Warning: Could not find FOR_LLM.md file.[/yellow]')
     if not files_to_display:
-        console.print('[bold red]Error: Could not find required documentation file.[/bold red]')
+        console.print('[red]Error: Could not find required documentation file.[/red]')
         console.print('[yellow]Make sure FOR_LLM.md is installed with the package.[/yellow]')
         return
     for (title, file_path) in files_to_display:
@@ -135,7 +135,7 @@ def get_input_data(input_file):
     try:
         if input_file:
             if not os.path.exists(input_file):
-                console.print(f"[bold red]File '{input_file}' not found.[/bold red]")
+                console.print(f"[red]File '{input_file}' not found.[/red]")
                 sys.exit(1)
             with open(input_file, 'r', encoding='utf-8') as f:
                 data = f.read()
@@ -150,12 +150,11 @@ def get_input_data(input_file):
                 console.print('[green]Using clipboard content as input[/green]')
                 return clipboard_content
             except ImportError:
-                console.print("[bold red]Error: pyperclip module not found. Please install it with 'pip install pyperclip'.[/bold red]")
+                console.print("[red]Error: pyperclip module not found. Please install it with 'pip install pyperclip'.[/red]")
                 sys.exit(1)
     except Exception as e:
-        console.print(f'[bold red]Error getting input: {e}[/bold red]')
+        console.print(f'[red]Error getting input: {e}[/red]')
         sys.exit(1)
-
 
 def setup_pipeline():
     """
@@ -180,8 +179,6 @@ def setup_pipeline():
 
     pipeline.add_postprocessor(SyntaxValidator())
     return pipeline
-
-
 
 def generate_side_by_side_diff(old_lines, new_lines, file_path):
     """
@@ -226,8 +223,6 @@ def generate_side_by_side_diff(old_lines, new_lines, file_path):
                 table.add_row(Text('', style=''), Text(new_lines[line_num], style='green'))
     return table
 
-
-
 def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
     """
     Shows diff for each file and asks for confirmation.
@@ -238,11 +233,11 @@ def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
     Returns:
         Dict[str, bool]: Dictionary with file paths and approval flags
     """
+    from patchcommander.core.text_utils import normalize_line_endings
     approvals = {}
-
     for result in results:
         if result.has_errors():
-            console.print(f'[bold red]Errors found in processing {result.path}:[/bold red]')
+            console.print(f'[red]Errors found in processing {result.path}:[/red]')
             for error in result.errors:
                 console.print(f'  - {error}')
             for operation in result.operations:
@@ -258,15 +253,19 @@ def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
                 console.print(f'[yellow]Skipping changes to {result.path}.[/yellow]')
                 continue
 
-        if result.original_content == result.current_content:
+        # Normalize both contents for comparison
+        normalized_original = normalize_line_endings(result.original_content)
+        normalized_current = normalize_line_endings(result.current_content)
+
+        if normalized_original == normalized_current:
             console.print(f'[blue]No changes to {result.path}[/blue]')
             approvals[result.path] = False
             continue
 
-        old_lines = result.original_content.splitlines()
-        new_lines = result.current_content.splitlines()
-
+        old_lines = normalized_original.splitlines()
+        new_lines = normalized_current.splitlines()
         diff_lines = list(difflib.unified_diff(old_lines, new_lines, fromfile=f'current: {result.path}', tofile=f'new: {result.path}', lineterm=''))
+
         if not diff_lines:
             console.print(f'[blue]No changes detected for {result.path}.[/blue]')
             approvals[result.path] = False
@@ -277,37 +276,27 @@ def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
             approvals[result.path] = True
             continue
 
-        # Always use interactive diff viewer
         try:
             from patchcommander.diff_viewer import show_interactive_diff
-            interactive_result = show_interactive_diff(
-                result.original_content,
-                result.current_content,
-                result.path,
-                errors=result.errors
-            )
-
-            if interactive_result == "yes":
+            interactive_result = show_interactive_diff(normalized_original, normalized_current, result.path, errors=result.errors)
+            if interactive_result == 'yes':
                 approvals[result.path] = True
                 console.print(f'[green]Change approved for {result.path}.[/green]')
-            elif interactive_result == "no":
+            elif interactive_result == 'no':
                 approvals[result.path] = False
                 console.print(f'[yellow]Changes to {result.path} rejected.[/yellow]')
-            elif interactive_result == "skip":
+            elif interactive_result == 'skip':
                 approvals[result.path] = False
                 console.print(f'[yellow]Skipping changes to {result.path} for now.[/yellow]')
-            elif interactive_result == "quit":
-                console.print("[yellow]User aborted the diff process.[/yellow]")
+            elif interactive_result == 'quit':
+                console.print('[yellow]User aborted the diff process.[/yellow]')
                 break
         except Exception as e:
             console.print(f'[red]Error displaying interactive diff: {e}[/red]')
             import traceback
             console.print(f'[dim]{traceback.format_exc()}[/dim]')
-
-            # Fallback to standard prompt if interactive diff fails
-            console.print("[yellow]Falling back to standard prompt due to error...[/yellow]")
-            _show_standard_diff(result)
-
+            console.print('[yellow]Falling back to standard prompt due to error...[/yellow]')
+            _show_standard_diff(result, normalized_original, normalized_current)
             answer = Prompt.ask(f'Apply changes to {result.path}?', choices=['y', 'n', 's'], default='y')
             if answer.lower() == 'y':
                 approvals[result.path] = True
@@ -318,42 +307,32 @@ def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
             else:
                 approvals[result.path] = False
                 console.print(f'[yellow]Changes to {result.path} rejected.[/yellow]')
-
     return approvals
 
-
-
-def _show_standard_diff(result: PatchResult) -> None:
+def _show_standard_diff(result: PatchResult, normalized_original: str = None, normalized_current: str = None) -> None:
     """
     Displays a standard diff in the Rich console.
 
     Args:
         result: Operation result containing original and modified content
+        normalized_original: Optional normalized original content
+        normalized_current: Optional normalized current content
     """
-    old_lines = result.original_content.splitlines()
-    new_lines = result.current_content.splitlines()
+    from patchcommander.core.text_utils import normalize_line_endings
 
-    diff_lines = list(
-        difflib.unified_diff(
-            old_lines,
-            new_lines,
-            fromfile=f"current: {result.path}",
-            tofile=f"new: {result.path}",
-            lineterm="",
-        )
-    )
+    old_content = normalized_original if normalized_original is not None else normalize_line_endings(result.original_content)
+    new_content = normalized_current if normalized_current is not None else normalize_line_endings(result.current_content)
+
+    old_lines = old_content.splitlines()
+    new_lines = new_content.splitlines()
+
+    diff_lines = list(difflib.unified_diff(old_lines, new_lines, fromfile=f'current: {result.path}', tofile=f'new: {result.path}', lineterm=''))
 
     if diff_lines:
         diff_text = '\n'.join(diff_lines)
         syntax = Syntax(diff_text, 'diff', theme='monokai', line_numbers=True)
-        panel = Panel(
-            syntax,
-            title=f'Changes for: {result.path}',
-            border_style='blue',
-            box=box.DOUBLE
-        )
+        panel = Panel(syntax, title=f'Changes for: {result.path}', border_style='blue', box=box.DOUBLE)
         console.print(panel)
-
 
 def apply_changes(results: List[PatchResult], approvals: Dict[str, bool]) -> int:
     """
@@ -366,6 +345,7 @@ def apply_changes(results: List[PatchResult], approvals: Dict[str, bool]) -> int
     Returns:
         int: Number of modified files
     """
+    from patchcommander.core.text_utils import normalize_line_endings
     modified_count = 0
     for result in results:
         if approvals.get(result.path, False):
@@ -373,14 +353,17 @@ def apply_changes(results: List[PatchResult], approvals: Dict[str, bool]) -> int
                 directory = os.path.dirname(result.path)
                 if directory:
                     os.makedirs(directory, exist_ok=True)
+
+                # Normalize line endings before writing to ensure consistency
+                normalized_content = normalize_line_endings(result.current_content)
+
                 with open(result.path, 'w', encoding='utf-8') as f:
-                    f.write(result.current_content)
+                    f.write(normalized_content)
                 console.print(f'[green]Applied changes to {result.path}[/green]')
                 modified_count += 1
             except Exception as e:
-                console.print(f'[bold red]Error applying changes to {result.path}: {e}[/bold red]')
+                console.print(f'[red]Error applying changes to {result.path}: {e}[/red]')
     return modified_count
-
 
 def main():
     """
@@ -400,7 +383,7 @@ def main():
             from patchcommander.config_ui import run_config_ui
             run_config_ui()
         except ImportError as e:
-            console.print(f"[bold red]Error loading configuration UI: {e}[/bold red]")
+            console.print(f"[red]Error loading configuration UI: {e}[/red]")
             console.print("[yellow]Falling back to simple configuration display.[/yellow]")
             print_config()
         return 0
@@ -431,7 +414,7 @@ def main():
     print_banner()
     if args.normalize_only and args.input_file:
         if not os.path.exists(args.input_file):
-            console.print(f"[bold red]File '{args.input_file}' not found.[/bold red]")
+            console.print(f"[red]File '{args.input_file}' not found.[/red]")
             return 1
         with open(args.input_file, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -455,8 +438,8 @@ def main():
     except Exception as e:
         if args.debug:
             import traceback
-            console.print('[bold red]Error stack trace:[/bold red]')
-            console.print(traceback.format_exc())
-        console.print(f'[bold red]Error: {str(e)}[/bold red]')
+            print('Error stack trace:')
+            print(traceback.format_exc())
+        print(f'Error: {str(e)}')
         return 1
     return 0

@@ -1,0 +1,132 @@
+<FILE path="patchcommander/tests/manual/sandbox/python_class.py">
+"""
+Test file for PatchCommander containing various Python class structures.
+Used for testing class-related operations.
+"""
+import typing
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Any, Union, Tuple
+
+
+class SimpleClass:
+    """A simple class with basic attributes and methods."""
+
+    def __init__(self, name: str):
+        self.name = name
+        self.value = 42
+
+    def get_name(self) -> str:
+        return self.name
+
+
+class ClassWithDecorators:
+    """Class demonstrating various decorators."""
+
+    @classmethod
+    def from_string(cls, text: str) -> 'ClassWithDecorators':
+        """Create instance from string."""
+        return cls(text)
+
+    @staticmethod
+    def helper_method() -> bool:
+        """Static utility method."""
+        return True
+
+    @property
+    def computed_value(self) -> int:
+        """Property getter example."""
+        return len(self.value) * 2
+
+    def __init__(self, value: str):
+        self.value = value
+
+
+@dataclass
+class DataClass:
+    """Class using dataclass decorator."""
+    name: str
+    age: int
+    tags: List[str] = None
+
+    def __post_init__(self):
+        if self.tags is None:
+            self.tags = []
+
+
+class InheritedClass(SimpleClass):
+    """Class demonstrating inheritance."""
+
+    def __init__(self, name: str, extra: str):
+        super().__init__(name)
+        self.extra = extra
+
+    def get_name(self) -> str:
+        """Override parent method."""
+        return f"{self.name} ({self.extra})"
+
+
+class ComplexClass:
+    """Class with complex structure including nested classes and multiple methods."""
+
+    class NestedClass:
+        """Nested class definition."""
+        def __init__(self, data: Any):
+            self.data = data
+
+        def process(self) -> str:
+            return str(self.data)
+
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self._cache = {}
+        self._initialized = False
+
+    def initialize(self) -> None:
+        """Initialize the instance."""
+        if not self._initialized:
+            for key, value in self.config.items():
+                self._cache[key] = self.NestedClass(value)
+            self._initialized = True
+
+    def get_value(self, key: str, default: Any = None) -> Any:
+        """Get a value from the configuration."""
+        if not self._initialized:
+            self.initialize()
+
+        if key not in self._cache:
+            return default
+
+        return self._cache[key].process()
+
+    async def async_operation(self, input_data: List[str]) -> Dict[str, str]:
+        """Asynchronous operation example."""
+        result = {}
+        for item in input_data:
+            result[item] = await self._process_item(item)
+        return result
+
+    async def _process_item(self, item: str) -> str:
+        """Internal async helper method."""
+        return f"Processed: {item}"
+
+
+# Abstract class example
+from abc import ABC, abstractmethod
+
+class AbstractBase(ABC):
+    """Abstract base class example."""
+
+    @abstractmethod
+    def execute(self, command: str) -> bool:
+        """Execute a command."""
+        pass
+
+    @abstractmethod
+    def query(self, query_string: str) -> List[Dict]:
+        """Execute a query."""
+        pass
+
+    def helper(self) -> str:
+        """Non-abstract method in abstract class."""
+        return "Helper method"
+</FILE>

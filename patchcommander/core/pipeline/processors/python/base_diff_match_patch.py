@@ -88,7 +88,8 @@ class BaseDiffMatchPatchProcessor:
         self, content: str, base_indent: str, body_indent: str = None
     ) -> str:
         """
-        Formats the code without decorators with the appropriate indentation.
+        Formats the code without decorators with the appropriate indentation,
+        preserving the structure of nested blocks.
 
         Args:
             content: The code content to format.
@@ -96,7 +97,7 @@ class BaseDiffMatchPatchProcessor:
             body_indent: The indentation for the rest of the code (defaults to base_indent + 4 spaces).
 
         Returns:
-            The formatted code with the correct indentation.
+            The formatted code with proper indentation.
         """
         if body_indent is None:
             body_indent = base_indent + "    "
@@ -105,25 +106,43 @@ class BaseDiffMatchPatchProcessor:
         if not lines:
             return ""
 
-        # Format the first line (method/function definition)
-        formatted = [f"{base_indent}{lines[0]}"]
+        # Format first line (function/method definition)
+        formatted = [f"{base_indent}{lines[0].strip()}"]
 
-        # If there is only one line, return it immediately
         if len(lines) == 1:
             return formatted[0]
 
-        # Handle the rest of the function/method body with accurate docstring formatting
-        for i, line in enumerate(lines[1:], 1):
-            # Empty lines remain empty lines
+        # Determine the base indentation level in the original code
+        original_base_indent = None
+        for i in range(1, len(lines)):
+            line = lines[i]
+            if line.strip():
+                original_base_indent = len(line) - len(line.lstrip())
+                break
+
+        if original_base_indent is None:
+            original_base_indent = 4  # Default if we can't detect
+
+        # Process each line preserving relative indentation
+        for i in range(1, len(lines)):
+            line = lines[i]
             if not line.strip():
                 formatted.append("")
                 continue
 
-            # Remove the original indentation and add the new one
-            stripped_line = line.lstrip()
-            formatted.append(f"{body_indent}{stripped_line}")
+            # Calculate the relative indentation compared to the base level
+            current_indent = len(line) - len(line.lstrip())
 
-        # Combine all lines into a single text
+            if current_indent >= original_base_indent:
+                # Line is part of the body - preserve its relative indentation
+                relative_indent = current_indent - original_base_indent
+                new_indent = body_indent + " " * relative_indent
+                formatted.append(f"{new_indent}{line.lstrip()}")
+            else:
+                # Line has less indentation than the base (might be a new definition)
+                # In most cases, we'll append with body_indent
+                formatted.append(f'{body_indent}{line.lstrip()}')
+
         return '\n'.join(formatted)
 
     def _normalize_empty_lines(self, text: str, count: int=None) -> str:

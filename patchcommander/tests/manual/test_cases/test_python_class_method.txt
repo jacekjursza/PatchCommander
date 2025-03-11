@@ -1,0 +1,124 @@
+# Test cases for Python class methods
+
+# Test case 1: Modify a simple instance method
+<FILE path="patchcommander/tests/manual/sandbox/python_class_method.py" xpath="MethodTestClass.simple_method">
+def simple_method(self) -> str:
+    """Simple instance method - UPDATED."""
+    return f"Updated simple method: {self.name} with value {self.value}"
+</FILE>
+
+# Test case 2: Update a method with decorators
+<FILE path="patchcommander/tests/manual/sandbox/python_class_method.py" xpath="MethodTestClass.decorated_method">
+@method_decorator
+def decorated_method(self, input_data: str, transform: bool = False) -> str:
+    """Method with custom decorator - UPDATED with transform parameter."""
+    result = f"Processed: {input_data} by {self.name}"
+    return result.upper() if transform else result
+</FILE>
+
+# Test case 3: Add a new method to an existing class
+<FILE path="patchcommander/tests/manual/sandbox/python_class_method.py" xpath="MethodTestClass.multiply_value">
+def multiply_value(self, multiplier: int) -> int:
+    """
+    Multiply the instance value by the given multiplier.
+
+    Args:
+        multiplier: Value to multiply by
+
+    Returns:
+        The result of the multiplication
+    """
+    return self.value * multiplier
+</FILE>
+
+# Test case 4: Update a class method
+<FILE path="patchcommander/tests/manual/sandbox/python_class_method.py" xpath="MethodTestClass.class_method">
+    @staticmethod
+    def class_method(cls, param: str) -> 'MethodTestClass':
+        """Class method example."""
+        return 2
+</FILE>
+
+# Test case 5: Update a static method
+<FILE path="patchcommander/tests/manual/sandbox/python_class_method.py" xpath="MethodTestClass.static_method">
+@staticmethod
+def static_method(x: int, y: int, operation: str = "add") -> int:
+    """
+    Static method example - UPDATED with operation parameter.
+
+    Args:
+        x: First number
+        y: Second number
+        operation: Operation to perform (add, subtract, multiply, divide)
+
+    Returns:
+        Result of the operation
+    """
+    if operation == "add":
+        return x + y
+    elif operation == "subtract":
+        return x - y
+    elif operation == "multiply":
+        return x * y
+    elif operation == "divide":
+        return x // y if y != 0 else 0
+    else:
+        return x + y  # Default to addition
+</FILE>
+
+# Test case 6: Update an async method
+<FILE path="patchcommander/tests/manual/sandbox/python_class_method.py" xpath="MethodTestClass.async_method">
+async def async_method(self, items: List[str], transform: bool = False) -> List[str]:
+    """
+    Asynchronous method - UPDATED with transform parameter.
+
+    Args:
+        items: List of items to process
+        transform: Whether to transform the result to uppercase
+
+    Returns:
+        Processed items
+    """
+    result = []
+    for item in items:
+        processed = await self._process_item(item)
+        if transform:
+            processed = processed.upper()
+        result.append(processed)
+    return result
+</FILE>
+
+# Test case 7: Add a method to a generic class
+<FILE path="patchcommander/tests/manual/sandbox/python_class_method.py" xpath="GenericMethodClass.map">
+def map(self, mapper: Callable[[T], Any]) -> List[Any]:
+    """
+    Apply a mapping function to the value and return the result.
+
+    Args:
+        mapper: Function to apply to the value
+
+    Returns:
+        Result of the mapping function
+    """
+    return mapper(self.value)
+</FILE>
+
+# Test case 8: Add a property method pair
+<FILE path="patchcommander/tests/manual/sandbox/python_class_method.py" xpath="MethodTestClass.custom_property">
+@property
+def custom_property(self) -> str:
+    """New custom property."""
+    return f"{self.name}-{self.value}"
+
+@custom_property.setter
+def custom_property(self, value: str) -> None:
+    """Setter for custom property."""
+    if not value or "-" not in value:
+        raise ValueError("Invalid format, expected name-value")
+    name, val = value.split("-", 1)
+    self.name = name
+    try:
+        self.value = int(val)
+    except ValueError:
+        raise ValueError("Value part must be an integer")
+</FILE>

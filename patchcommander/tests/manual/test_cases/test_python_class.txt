@@ -1,0 +1,140 @@
+# Test cases for Python classes
+
+# Test case 1: Update an existing class completely
+<FILE path="patchcommander/tests/manual/sandbox/python_class.py" xpath="SimpleClass">
+class SimpleClass:
+    """A simple class with basic attributes and methods - UPDATED."""
+
+    def __init__(self, name: str, description: str = ""):
+        self.name = name
+        self.value = 100  # Changed from 42
+        self.description = description  # New attribute
+
+    def get_name(self) -> str:
+        return f"{self.name} - {self.description}" if self.description else self.name
+
+    def set_value(self, value: int) -> None:
+        """New method to set the value."""
+        self.value = value
+</FILE>
+
+# Test case 2: Add a new class to an existing file
+<FILE path="patchcommander/tests/manual/sandbox/python_class.py" xpath="NewUtilityClass">
+class NewUtilityClass:
+    """A new utility class with static methods."""
+
+    @staticmethod
+    def format_string(text: str, uppercase: bool = False) -> str:
+        """Format a string with optional uppercase conversion."""
+        formatted = text.strip()
+        return formatted.upper() if uppercase else formatted
+
+    @staticmethod
+    def calculate_sum(numbers: list) -> int:
+        """Calculate the sum of a list of numbers."""
+        return sum(numbers)
+</FILE>
+
+# Test case 3: Modify a class with decorators
+<FILE path="patchcommander/tests/manual/sandbox/python_class.py" xpath="ClassWithDecorators">
+class ClassWithDecorators:
+    """Class demonstrating various decorators - MODIFIED."""
+
+    def __init__(self, value: str, priority: int = 0):
+        self.value = value
+        self.priority = priority  # New attribute
+
+    @classmethod
+    def from_string(cls, text: str, priority: int = 0) -> 'ClassWithDecorators':
+        """Create instance from string with optional priority."""
+        return cls(text, priority)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'ClassWithDecorators':
+        """New class method to create instance from a dictionary."""
+        return cls(
+            data.get('value', ''),
+            data.get('priority', 0)
+        )
+
+    @staticmethod
+    def helper_method() -> bool:
+        """Static utility method."""
+        return True
+
+    @property
+    def computed_value(self) -> int:
+        """Property getter example - MODIFIED."""
+        return len(self.value) * 2 + self.priority
+</FILE>
+
+# Test case 4: Create a new file with a class (should create a new file if it doesn't exist)
+<FILE path="patchcommander/tests/manual/sandbox/python_class_new.py">
+"""
+New Python class file created by PatchCommander test.
+"""
+from typing import Dict, List, Optional, Any
+
+class ConfigManager:
+    """Class for managing configuration values."""
+
+    def __init__(self, config_file: str = None):
+        self.config_file = config_file
+        self._config: Dict[str, Any] = {}
+        self._loaded = False
+
+    def load(self) -> bool:
+        """
+        Load configuration from file.
+
+        Returns:
+            bool: True if configuration was loaded successfully, False otherwise
+        """
+        # In a real implementation, this would load from the file
+        # For this test, we'll just set some default values
+        self._config = {
+            "app_name": "TestApp",
+            "version": "1.0.0",
+            "debug": False,
+            "log_level": "INFO"
+        }
+        self._loaded = True
+        return True
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        Get a configuration value.
+
+        Args:
+            key: Configuration key
+            default: Default value to return if key is not found
+
+        Returns:
+            Value of the configuration key or default
+        """
+        if not self._loaded:
+            self.load()
+        return self._config.get(key, default)
+
+    def set(self, key: str, value: Any) -> None:
+        """
+        Set a configuration value.
+
+        Args:
+            key: Configuration key
+            value: Value to set
+        """
+        if not self._loaded:
+            self.load()
+        self._config[key] = value
+
+    def save(self) -> bool:
+        """
+        Save configuration to file.
+
+        Returns:
+            bool: True if configuration was saved successfully, False otherwise
+        """
+        # In a real implementation, this would save to the file
+        return True
+</FILE>

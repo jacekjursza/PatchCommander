@@ -1,0 +1,150 @@
+<FILE path="patchcommander/tests/manual/sandbox/python_class_method.py">
+"""
+Test file for PatchCommander containing various Python class methods.
+Used for testing method-related operations.
+"""
+import time
+import functools
+from typing import Dict, List, Optional, Any, Union, Tuple, Callable, TypeVar, Generic
+
+T = TypeVar('T')
+
+
+def method_decorator(func):
+    """Example decorator for methods."""
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        print(f"Calling {func.__name__}")
+        start = time.time()
+        result = func(self, *args, **kwargs)
+        end = time.time()
+        print(f"Finished {func.__name__} in {end - start:.2f}s")
+        return result
+    return wrapper
+
+
+class MethodTestClass:
+    """Class with various method types for testing."""
+
+    def __init__(self, name: str, value: int = 42):
+        self.name = name
+        self.value = value
+        self._private_value = 100
+
+    def simple_method(self) -> str:
+        """Simple instance method."""
+        return f"Simple method: {self.name}"
+
+    def method_with_args(self, arg1: str, arg2: int, *args, **kwargs) -> Dict:
+        """Method with various argument types."""
+        result = {
+            "arg1": arg1,
+            "arg2": arg2,
+            "args": args,
+            "kwargs": kwargs,
+            "self_name": self.name
+        }
+        return result
+
+    @method_decorator
+    def decorated_method(self, input_data: str) -> str:
+        """Method with custom decorator."""
+        return f"Processed: {input_data} by {self.name}"
+
+    @classmethod
+    def class_method(cls, param: str) -> 'MethodTestClass':
+        """Class method example."""
+        return cls(f"Created by class method: {param}")
+
+    @staticmethod
+    def static_method(x: int, y: int) -> int:
+        """Static method example."""
+        return x + y
+
+    @property
+    def readonly_property(self) -> int:
+        """Read-only property."""
+        return self.value * 2
+
+    @property
+    def read_write_property(self) -> int:
+        """Readable property."""
+        return self._private_value
+
+    @read_write_property.setter
+    def read_write_property(self, value: int) -> None:
+        """Writable property."""
+        if value < 0:
+            raise ValueError("Value must be positive")
+        self._private_value = value
+
+    async def async_method(self, items: List[str]) -> List[str]:
+        """Asynchronous method."""
+        result = []
+        for item in items:
+            # Simulate async processing
+            processed = await self._process_item(item)
+            result.append(processed)
+        return result
+
+    async def _process_item(self, item: str) -> str:
+        """Private async helper method."""
+        return f"{item} processed by {self.name}"
+
+    def __str__(self) -> str:
+        """String representation magic method."""
+        return f"MethodTestClass(name={self.name}, value={self.value})"
+
+    def __repr__(self) -> str:
+        """Developer representation magic method."""
+        return f"MethodTestClass({self.name!r}, {self.value})"
+
+    def __eq__(self, other) -> bool:
+        """Equality comparison magic method."""
+        if not isinstance(other, MethodTestClass):
+            return False
+        return self.name == other.name and self.value == other.value
+
+
+class GenericMethodClass(Generic[T]):
+    """Class with generic type methods."""
+
+    def __init__(self, value: T):
+        self.value = value
+
+    def get_value(self) -> T:
+        """Return the generic typed value."""
+        return self.value
+
+    def set_value(self, new_value: T) -> None:
+        """Set the generic typed value."""
+        self.value = new_value
+
+    def transform(self, transformer: Callable[[T], Union[T, Any]]) -> Any:
+        """Apply a transformation to the value."""
+        return transformer(self.value)
+
+
+class OverloadedMethods:
+    """Class demonstrating method overloading patterns."""
+
+    def process(self, input_data: Union[str, int, List]) -> Any:
+        """Process different input types."""
+        if isinstance(input_data, str):
+            return self._process_string(input_data)
+        elif isinstance(input_data, int):
+            return self._process_integer(input_data)
+        elif isinstance(input_data, list):
+            return self._process_list(input_data)
+        else:
+            raise TypeError(f"Unsupported input type: {type(input_data)}")
+
+    def _process_string(self, data: str) -> str:
+        return f"String processed: {data.upper()}"
+
+    def _process_integer(self, data: int) -> int:
+        return data * 2
+
+    def _process_list(self, data: List) -> List:
+        return [item for item in data if item]
+</FILE>

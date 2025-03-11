@@ -1,0 +1,269 @@
+# Test cases for Python functions
+
+# Test case 1: Update a simple function
+<FILE path="patchcommander/tests/manual/sandbox/python_function.py" xpath="simple_function">
+def simple_function() -> str:
+    """
+    A simple function that returns a string - UPDATED.
+
+    Returns:
+        A greeting message
+    """
+    return "Hello, updated world!"
+</FILE>
+
+# Test case 2: Update a function with arguments
+<FILE path="patchcommander/tests/manual/sandbox/python_function.py" xpath="function_with_args">
+def function_with_args(name: str, age: int, title: str = "") -> str:
+    """
+    Function with simple arguments and type hints - UPDATED with title parameter.
+
+    Args:
+        name: The person's name
+        age: The person's age
+        title: Optional title (Mr., Mrs., Dr., etc.)
+
+    Returns:
+        A formatted greeting string
+    """
+    full_name = f"{title} {name}".strip()
+    return f"Hello, {full_name}! You are {age} years old."
+</FILE>
+
+# Test case 3: Add a new function
+<FILE path="patchcommander/tests/manual/sandbox/python_function.py" xpath="validate_input">
+def validate_input(value: Any, expected_type: type, min_value: Any = None, max_value: Any = None) -> Tuple[bool, str]:
+    """
+    Validate an input value against type and range constraints.
+
+    Args:
+        value: The value to validate
+        expected_type: The expected type of the value
+        min_value: Optional minimum value
+        max_value: Optional maximum value
+
+    Returns:
+        A tuple with (is_valid, error_message)
+    """
+    # Check type
+    if not isinstance(value, expected_type):
+        return False, f"Expected type {expected_type.__name__}, got {type(value).__name__}"
+
+    # Check min value if provided
+    if min_value is not None:
+        if value < min_value:
+            return False, f"Value must be at least {min_value}"
+
+    # Check max value if provided
+    if max_value is not None:
+        if value > max_value:
+            return False, f"Value must be at most {max_value}"
+
+    # All checks passed
+    return True, ""
+</FILE>
+
+# Test case 4: Update a function with decorators
+<FILE path="patchcommander/tests/manual/sandbox/python_function.py" xpath="decorated_function">
+@timing_decorator
+def decorated_function(iterations: int = 1000000, step: int = 1) -> int:
+    """
+    A function with a decorator that performs a simple calculation - UPDATED with step parameter.
+
+    Args:
+        iterations: Number of iterations to perform
+        step: Step value for the loop
+
+    Returns:
+        The sum of iterations
+    """
+    total = 0
+    for i in range(0, iterations, step):
+        total += i
+    return total
+</FILE>
+
+# Test case 5: Update an async function
+<FILE path="patchcommander/tests/manual/sandbox/python_function.py" xpath="async_function">
+async def async_function(urls: List[str], timeout: float = 0.1) -> Dict[str, str]:
+    """
+    Asynchronous function example - UPDATED with timeout parameter.
+
+    Args:
+        urls: List of URLs to process
+        timeout: Timeout in seconds for each URL
+
+    Returns:
+        Dictionary mapping URLs to their processed results
+    """
+    async def fetch_url(url: str) -> str:
+        # This is a mock implementation
+        await asyncio.sleep(timeout)  # Simulate network delay with configurable timeout
+        return f"Content from {url} (fetched with {timeout}s timeout)"
+
+    tasks = [fetch_url(url) for url in urls]
+    results = await asyncio.gather(*tasks)
+
+    return dict(zip(urls, results))
+</FILE>
+
+# Test case 6: Update a generator function
+<FILE path="patchcommander/tests/manual/sandbox/python_function.py" xpath="fibonacci_generator">
+def fibonacci_generator(n: int, start_with_zero: bool = True) -> Generator[int, None, None]:
+    """
+    Generator function that yields Fibonacci numbers - UPDATED with start_with_zero parameter.
+
+    Args:
+        n: Number of Fibonacci numbers to generate
+        start_with_zero: Whether to start with 0 (True) or with 1, 1 (False)
+
+    Yields:
+        The next Fibonacci number in the sequence
+    """
+    if start_with_zero:
+        a, b = 0, 1
+    else:
+        a, b = 1, 1
+
+    for _ in range(n):
+        yield a
+        a, b = b, a + b
+</FILE>
+
+# Test case 7: Update a higher-order function
+<FILE path="patchcommander/tests/manual/sandbox/python_function.py" xpath="create_multiplier">
+def create_multiplier(factor: int, add_value: int = 0) -> Callable[[int], int]:
+    """
+    Higher-order function that creates and returns another function - UPDATED with add_value parameter.
+
+    Args:
+        factor: The multiplication factor
+        add_value: Value to add after multiplication
+
+    Returns:
+        A function that multiplies its input by the factor and adds the add_value
+    """
+    def multiplier(x: int) -> int:
+        return x * factor + add_value
+
+    return multiplier
+</FILE>
+
+# Test case 8: Create a new file with functions
+<FILE path="patchcommander/tests/manual/sandbox/python_function_math.py">
+"""
+Additional math utility functions for testing.
+"""
+from typing import List, Tuple, Optional
+import math
+
+def calculate_statistics(numbers: List[float]) -> Tuple[float, float, float, float]:
+    """
+    Calculate basic statistics for a list of numbers.
+
+    Args:
+        numbers: List of numbers to analyze
+
+    Returns:
+        Tuple of (mean, median, minimum, maximum)
+    """
+    if not numbers:
+        return (0.0, 0.0, 0.0, 0.0)
+
+    # Calculate mean
+    mean = sum(numbers) / len(numbers)
+
+    # Calculate median
+    sorted_numbers = sorted(numbers)
+    n = len(sorted_numbers)
+    mid = n // 2
+
+    if n % 2 == 0:
+        median = (sorted_numbers[mid - 1] + sorted_numbers[mid]) / 2
+    else:
+        median = sorted_numbers[mid]
+
+    # Get min and max
+    minimum = min(numbers)
+    maximum = max(numbers)
+
+    return (mean, median, minimum, maximum)
+
+def find_prime_factors(n: int) -> List[int]:
+    """
+    Find all prime factors of a number.
+
+    Args:
+        n: The number to factorize
+
+    Returns:
+        List of prime factors
+    """
+    i = 2
+    factors = []
+
+    while i * i <= n:
+        if n % i:
+            i += 1
+        else:
+            n //= i
+            factors.append(i)
+
+    if n > 1:
+        factors.append(n)
+
+    return factors
+
+def is_prime(n: int) -> bool:
+    """
+    Check if a number is prime.
+
+    Args:
+        n: The number to check
+
+    Returns:
+        True if the number is prime, False otherwise
+    """
+    if n <= 1:
+        return False
+    if n <= 3:
+        return True
+    if n % 2 == 0 or n % 3 == 0:
+        return False
+
+    i = 5
+    while i * i <= n:
+        if n % i == 0 or n % (i + 2) == 0:
+            return False
+        i += 6
+
+    return True
+
+def gcd(a: int, b: int) -> int:
+    """
+    Calculate the greatest common divisor of two numbers.
+
+    Args:
+        a: First number
+        b: Second number
+
+    Returns:
+        Greatest common divisor
+    """
+    while b:
+        a, b = b, a % b
+    return a
+
+def lcm(a: int, b: int) -> int:
+    """
+    Calculate the least common multiple of two numbers.
+
+    Args:
+        a: First number
+        b: Second number
+
+    Returns:
+        Least common multiple
+    """
+    return a * b // gcd(a, b)
+</FILE>

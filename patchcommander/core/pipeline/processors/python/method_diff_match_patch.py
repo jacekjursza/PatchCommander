@@ -41,61 +41,92 @@ class DiffMatchPatchPythonMethodProcessor(BasePythonMethodProcessor, BasePythonE
         Returns:
             The formatted method content with proper indentation
         """
-        # Check if method_content contains a class declaration
-        class_match = re.search(r"class\s+(\w+)\s*(?:\([^)]*\))?\s*:", method_content)
+        # Sprawdź, czy zawartość nie zawiera deklaracji klasy zamiast metody
+        class_match = re.search(
+            "class\\s+(\\w+)\\s*(?:\\([^)]*\\))?\\s*:", method_content
+        )
         if class_match:
-            # Extract the class content
             class_name = class_match.group(1)
             console.print(
                 f"[yellow]Found class declaration in method content: {class_name}[/yellow]"
             )
-
             class_content = method_content[class_match.end() :]
             method_content = class_content.strip()
 
+        # Podziel zawartość na linie
         lines = method_content.strip().splitlines()
         if not lines:
             return ""
 
-        # Handle decorators
+        # Znajdź wszystkie dekoratory przed definicją metody
         decorators = []
         start_idx = 0
         while start_idx < len(lines) and lines[start_idx].strip().startswith("@"):
             decorators.append(lines[start_idx].strip())
             start_idx += 1
 
+        # Sprawdź czy mamy tylko dekoratory bez definicji metody
         if start_idx >= len(lines):
             return "\n".join((f"{base_indent}{decorator}" for decorator in decorators))
 
-        # Method definition
+        # Znajdź linię z definicją metody
         method_def = lines[start_idx].strip()
+
+        # Sprawdź, czy to setter dla property
+        is_property_setter = False
+        for decorator in decorators:
+            if re.match(r"@\w+\.setter", decorator):
+                is_property_setter = True
+                break
+
         formatted_lines = [f"{base_indent}{method_def}"]
         body_indent = base_indent + "    "
 
-        # Format the method body with the correct indentation
-        in_docstring = False
-        triple_quote = None
-
+        # Określ domyślne wcięcie dla treści metody
+        original_base_indent = None
         for i in range(start_idx + 1, len(lines)):
+            line = lines[i]
+            if line.strip():
+                original_base_indent = len(line) - len(line.lstrip())
+                break
+
+        if original_base_indent is None:
+            original_base_indent = 4
+
+        # Przetwórz treść metody linijka po linijce
+        i = start_idx + 1
+        while i < len(lines):
             line = lines[i]
             if not line.strip():
                 formatted_lines.append("")
+                i += 1
                 continue
 
             stripped_line = line.strip()
 
-            # Check if it's not the beginning of a new method or class
+            # Sprawdź, czy nie wkraczamy już na kolejną metodę lub klasę
             if (
-                re.match(r"^\s*def\s+", stripped_line)
-                or re.match(r"^\s*class\s+", stripped_line)
-            ) and not line.startswith(base_indent):
+                re.match("^\\s*def\\s+", stripped_line)
+                or re.match("^\\s*class\\s+", stripped_line)
+                or re.match("^\\s*@", stripped_line)
+            ) and not line.startswith(" " * original_base_indent):
                 break
 
-            # Handle docstrings and the method body
-            formatted_lines.append(f"{body_indent}{stripped_line}")
+            # Dostosuj wcięcie dla treści metody
+            current_indent = len(line) - len(line.lstrip())
+            if current_indent >= original_base_indent:
+                relative_indent = current_indent - original_base_indent
+                new_indent = body_indent + " " * relative_indent
+                formatted_lines.append(f"{new_indent}{line.lstrip()}")
+            else:
+                formatted_lines.append(f"{body_indent}{line.lstrip()}")
 
+            i += 1
+
+        # Złącz sformatowane linie w jedną zawartość
         formatted_body = "\n".join(formatted_lines)
 
+        # Dodaj dekoratory na początek, jeśli istnieją
         if decorators:
             formatted_decorators = "\n".join(
                 (f"{base_indent}{decorator}" for decorator in decorators)
@@ -123,8 +154,31 @@ class DiffMatchPatchPythonMethodProcessor(BasePythonMethodProcessor, BasePythonE
                 class_content = result.current_content[class_end:class_end + next_class_match.start()]
             else:
                 class_content = result.current_content[class_end:]
-            method_pattern = f'(\\n+)([ \\t]*)((?:@[^\\n]+\\n+[ \\t]*)*)(def\\s+{re.escape(method_name)}\\s*\\([^)]*\\)\\s*(->\\s*[^:]+)?\\s*:)'
+            is_property_setter = False
+            setter_pattern = None
+            new_content_lines = operation.content.strip().splitlines()
+            for line in new_content_lines:
+                if re.match('^\\s*@\\w+\\.setter\\s*$', line):
+                    is_property_setter = True
+                    property_match = re.match('^\\s*@(\\w+)\\.setter\\s*$', line)
+                    if property_match:
+                        property_name = property_match.group(1)
+                        setter_pattern = f'@{property_name}\\.setter'
+                    break
+
+            # Improved pattern to match methods with various decorator types, including those with parameters
+            if is_property_setter and setter_pattern:
+                method_pattern = f'(\\n+)([ \\t]*){setter_pattern}\\s*\\n+[ \\t]*def\\s+{re.escape(method_name)}\\s*\\('
+            else:
+                # Enhanced pattern that handles decorators with parameters
+                method_pattern = f'(\\n+)([ \\t]*)((?:@[^\\n]+\\n+[ \\t]*)*)(def\\s+{re.escape(method_name)}\\s*\\([^)]*\\)\\s*(->\\s*[^:]+)?\\s*:)'
+
             method_match = re.search(method_pattern, class_content)
+            if not method_match:
+                # Try with a more flexible pattern for decorators with parameters
+                decorator_pattern = f'(\\n+)([ \\t]*)((?:@[^\\n(]+(?:\\([^)]*\\))?\\n+[ \\t]*)*)(def\\s+{re.escape(method_name)}\\s*\\([^)]*\\)\\s*(->\\s*[^:]+)?\\s*:)'
+                method_match = re.search(decorator_pattern, class_content)
+
             if not method_match:
                 console.print(f'[yellow]Method {method_name} does not exist in class {class_name} - adding a new one[/yellow]')
                 base_indent = self._detect_base_indent(class_content)
@@ -149,9 +203,17 @@ class DiffMatchPatchPythonMethodProcessor(BasePythonMethodProcessor, BasePythonE
             method_indent = method_match.group(2)
             method_start_rel = method_match.start()
             method_start_abs = class_end + method_start_rel
-            method_def_rel = method_match.end()
+            if is_property_setter:
+                def_match = re.search(f'def\\s+{re.escape(method_name)}\\s*\\(', class_content[method_start_rel:])
+                if def_match:
+                    method_def_rel = method_start_rel + def_match.end()
+                else:
+                    method_def_rel = method_match.end()
+            else:
+                method_def_rel = method_match.end()
             rest_of_code = class_content[method_def_rel:]
             method_end_rel = method_def_rel
+            in_decorator = False
             for (i, line) in enumerate(rest_of_code.splitlines(keepends=True)):
                 if i == 0:
                     method_end_rel += len(line)
@@ -160,8 +222,13 @@ class DiffMatchPatchPythonMethodProcessor(BasePythonMethodProcessor, BasePythonE
                     method_end_rel += len(line)
                     continue
                 current_indent = len(line) - len(line.lstrip())
-                if current_indent <= len(method_indent) and (not line.lstrip().startswith('@')):
-                    break
+                if current_indent <= len(method_indent):
+                    if line.lstrip().startswith('@'):
+                        break
+                    if re.match('^\\s*(def|class)\\s+', line):
+                        break
+                    if current_indent < len(method_indent):
+                        break
                 method_end_rel += len(line)
             method_end_abs = class_end + method_end_rel
             original_newlines_before = method_match.group(1)
@@ -169,7 +236,7 @@ class DiffMatchPatchPythonMethodProcessor(BasePythonMethodProcessor, BasePythonE
             formatted_method = self._format_new_method(new_method_content, method_indent)
             prefix = result.current_content[:method_start_abs]
             suffix = result.current_content[method_end_abs:]
-            if not suffix.startswith('\n\n') and suffix.strip():
+            if suffix.strip() and (not suffix.startswith('\n\n')):
                 if suffix.startswith('\n'):
                     suffix = '\n' + suffix
                 else:

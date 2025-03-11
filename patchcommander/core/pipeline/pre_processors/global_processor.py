@@ -30,59 +30,90 @@ class TagParser(GlobalPreProcessor):
         Returns:
             List[PatchOperation]: A list of operations to perform
         """
-        # Normalize text
         normalized_text = normalize_line_endings(input_text)
-
-        # Parse tags
         operations = []
 
-        # Pattern for FILE and OPERATION tags
-        tag_pattern = re.compile(r'<(FILE|OPERATION)(\s+[^>]*)?(?:>(.*?)</\1\s*>|/>)', re.DOTALL)
+        # Regex do wyszukiwania tagów PatchCommander
+        tag_pattern = re.compile(
+            "<(FILE|OPERATION)(\\s+[^>]*)?(?:>(.*?)</\\1\\s*>|/>)", re.DOTALL
+        )
 
+        # Przeszukaj tekst w poszukiwaniu tagów
         for match in tag_pattern.finditer(normalized_text):
-            tag_type = match.group(1)
-            attr_str = match.group(2) or ""
-            content = match.group(3) or ""
+            tag_type = match.group(1)  # FILE lub OPERATION
+            attr_str = match.group(2) or ""  # String atrybutów
+            content = match.group(3) or ""  # Zawartość tagu
 
-            # Parse attributes
+            # Przetwórz atrybuty
             attributes = self._parse_attributes(attr_str)
 
-            # Check for required attributes
+            # Sprawdź wymagane atrybuty
             if tag_type == "FILE":
                 if "path" not in attributes:
-                    console.print("[bold red]FILE tag requires a 'path' attribute.[/bold red]")
+                    console.print(
+                        "[bold red]FILE tag requires a 'path' attribute.[/bold red]"
+                    )
                     continue
             elif tag_type == "OPERATION":
                 if "action" not in attributes:
-                    console.print("[bold red]OPERATION tag requires an 'action' attribute.[/bold red]")
+                    console.print(
+                        "[bold red]OPERATION tag requires an 'action' attribute.[/bold red]"
+                    )
                     continue
 
-                # Check for specific requirements for different actions
                 action = attributes["action"]
                 if action == "move_file":
                     if "source" not in attributes or "target" not in attributes:
-                        console.print("[bold red]move_file operation requires 'source' and 'target' attributes.[/bold red]")
+                        console.print(
+                            "[bold red]move_file operation requires 'source' and 'target' attributes.[/bold red]"
+                        )
                         continue
                 elif action == "delete_file":
                     if "source" not in attributes:
-                        console.print("[bold red]delete_file operation requires a 'source' attribute.[/bold red]")
+                        console.print(
+                            "[bold red]delete_file operation requires a 'source' attribute.[/bold red]"
+                        )
                         continue
                 elif action == "delete_method":
-                    if "source" not in attributes or "class" not in attributes or "method" not in attributes:
-                        console.print("[bold red]delete_method operation requires 'source', 'class', and 'method' attributes.[/bold red]")
+                    if (
+                        "source" not in attributes
+                        or "class" not in attributes
+                        or "method" not in attributes
+                    ):
+                        console.print(
+                            "[bold red]delete_method operation requires 'source', 'class', and 'method' attributes.[/bold red]"
+                        )
                         continue
 
-            # Create operation
+            # Sprawdzaj zduplikowane operacje - zapobieganie duplikatom metod
+            is_duplicate = False
+            if tag_type == "FILE" and "xpath" in attributes:
+                for existing_op in operations:
+                    if (
+                        existing_op.name == "FILE"
+                        and existing_op.path == attributes.get("path")
+                        and existing_op.xpath == attributes.get("xpath")
+                    ):
+                        console.print(
+                            f"[bold yellow]Warning: Duplicate operation found for {attributes.get('path')} xpath={attributes.get('xpath')}. Skipping.[/bold yellow]"
+                        )
+                        is_duplicate = True
+                        break
+
+            if is_duplicate:
+                continue
+
+            # Utwórz operację
             operation = PatchOperation(
                 name=tag_type,
                 path=attributes.get("path", attributes.get("source", "")),
                 content=content.strip(),
                 xpath=attributes.get("xpath", None),
                 action=attributes.get("action", None),
-                attributes=attributes
+                attributes=attributes,
             )
 
-            # Add file extension
+            # Wykryj rozszerzenie pliku
             if operation.path:
                 _, ext = os.path.splitext(operation.path)
                 operation.file_extension = ext.lower()[1:] if ext else ""

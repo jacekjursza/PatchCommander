@@ -1,0 +1,110 @@
+# Test cases for Python operation tags
+
+# Test case 1: Move a file
+<OPERATION action="move_file" source="patchcommander/tests/manual/sandbox/python_function_math.py" target="patchcommander/tests/manual/sandbox/python_math_utils.py" />
+
+# Test case 2: Delete a file
+<OPERATION action="delete_file" source="patchcommander/tests/manual/sandbox/python_class_new.py" />
+
+# Test case 3: Delete a method from a class
+<OPERATION action="delete_method" source="patchcommander/tests/manual/sandbox/python_class_method.py" class="MethodTestClass" method="multiply_value" />
+
+# Test case 4: Create a file that will be deleted later
+<FILE path="patchcommander/tests/manual/sandbox/temporary_file.py">
+"""
+A temporary file that will be deleted in a later test.
+"""
+
+def temp_function():
+    """Temporary function."""
+    print("This is a temporary file that will be deleted.")
+    return True
+</FILE>
+
+# Test case 5: Delete the temporary file
+<OPERATION action="delete_file" source="patchcommander/tests/manual/sandbox/temporary_file.py" />
+
+# Test case 6: Move a file and then modify its content
+<FILE path="patchcommander/tests/manual/sandbox/file_to_move.py">
+"""
+File that will be moved and then modified.
+"""
+
+def original_function():
+    """Original function in the file that will be moved."""
+    return "Original content"
+</FILE>
+
+<OPERATION action="move_file" source="patchcommander/tests/manual/sandbox/file_to_move.py" target="patchcommander/tests/manual/sandbox/moved_file.py" />
+
+<FILE path="patchcommander/tests/manual/sandbox/moved_file.py" xpath="original_function">
+def original_function():
+    """Modified function in the moved file."""
+    return "Modified content after move"
+</FILE>
+
+# Test case 7: Create a class with methods and then delete one of the methods
+<FILE path="patchcommander/tests/manual/sandbox/class_for_method_deletion.py">
+"""
+Test file with a class that will have methods deleted.
+"""
+
+class TestMethodDeletion:
+    """Class for testing method deletion."""
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def method_to_keep(self) -> str:
+        """This method will be kept."""
+        return f"Method kept for {self.name}"
+
+    def method_to_delete(self) -> str:
+        """This method will be deleted."""
+        return f"Method to delete for {self.name}"
+
+    def another_method_to_keep(self) -> str:
+        """This method will also be kept."""
+        return f"Another method kept for {self.name}"
+</FILE>
+
+<OPERATION action="delete_method" source="patchcommander/tests/manual/sandbox/class_for_method_deletion.py" class="TestMethodDeletion" method="method_to_delete" />
+
+# Test case 8: Create a file with multiple methods and then delete one method and update another
+<FILE path="patchcommander/tests/manual/sandbox/multiple_functions.py">
+"""
+File with multiple functions for testing operations.
+"""
+
+def function_to_keep():
+    """This function will be kept unchanged."""
+    return "Function kept unchanged"
+
+def function_to_delete():
+    """This function will be deleted."""
+    return "Function to delete"
+
+def function_to_update():
+    """This function will be updated."""
+    return "Original function content"
+</FILE>
+
+<OPERATION action="delete_file" source="patchcommander/tests/manual/sandbox/multiple_functions.py" />
+
+<FILE path="patchcommander/tests/manual/sandbox/multiple_functions.py">
+"""
+Recreated file with multiple functions for testing operations.
+"""
+
+def function_to_keep():
+    """This function will be kept unchanged."""
+    return "Function kept unchanged"
+
+def function_to_update():
+    """This function has been updated."""
+    return "Updated function content"
+
+def new_function():
+    """This is a newly added function."""
+    return "New function content"
+</FILE>

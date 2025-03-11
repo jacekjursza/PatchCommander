@@ -129,54 +129,47 @@ def find_class_method(content: str, class_name: str, method_name: str) -> Tuple[
         Tuple of (start_position, end_position, method_text, indentation)
         or (None, None, None, None) if method not found
     """
-    # First find the class
-    class_pattern = r'(^|\n)class\s+' + re.escape(class_name) + r'\s*(\([^)]*\))?\s*:'
+    class_pattern = '(^|\\n)class\\s+' + re.escape(class_name) + '\\s*(\\([^)]*\\))?\\s*:'
     class_match = re.search(class_pattern, content)
-    
     if not class_match:
-        return None, None, None, None
-    
+        return (None, None, None, None)
     class_end = class_match.end()
-    
-    # Find the end of the class by looking for the next class or top-level function
-    next_class_match = re.search(r'(^|\n)class\s+', content[class_end:])
+    next_class_match = re.search('(^|\\n)class\\s+', content[class_end:])
     if next_class_match:
         class_content = content[class_end:class_end + next_class_match.start()]
     else:
         class_content = content[class_end:]
-    
-    # Look for the method in the class content
-    method_pattern = r'(\n+)([ \t]*)def\s+' + re.escape(method_name) + r'\s*\([^)]*\)\s*(->.*?)?:'
+
+    # Enhanced method pattern that better handles decorators with parameters
+    method_pattern = '(\\n+)([ \\t]*)((?:@[^\\n]+\\n+[ \\t]*)*)(def\\s+' + re.escape(method_name) + '\\s*\\([^)]*\\)\\s*(->.*?)?:)'
     method_match = re.search(method_pattern, class_content)
-    
+
     if not method_match:
-        return None, None, None, None
-    
+        # Try with a more flexible pattern for decorators with parameters
+        decorator_pattern = '(\\n+)([ \\t]*)((?:@[^\\n(]+(?:\\([^)]*\\))?\\n+[ \\t]*)*)(def\\s+' + re.escape(method_name) + '\\s*\\([^)]*\\)\\s*(->.*?)?:)'
+        method_match = re.search(decorator_pattern, class_content)
+
+    if not method_match:
+        return (None, None, None, None)
+
     method_indent = method_match.group(2)
     method_start_rel = method_match.start()
     method_start_abs = class_end + method_start_rel
     method_def_rel = method_match.end()
-    
-    # Find the end of the method by checking indentation
     rest_of_code = class_content[method_def_rel:]
     method_end_rel = method_def_rel
-    
-    for i, line in enumerate(rest_of_code.splitlines(keepends=True)):
+    for (i, line) in enumerate(rest_of_code.splitlines(keepends=True)):
         if i == 0:
             method_end_rel += len(line)
             continue
-        
         if not line.strip():
             method_end_rel += len(line)
             continue
-        
         current_indent = len(line) - len(line.lstrip())
-        if current_indent <= len(method_indent) and not line.lstrip().startswith('@'):
+        if current_indent <= len(method_indent) and (not line.lstrip().startswith('@')):
             break
-        
         method_end_rel += len(line)
-    
     method_end_abs = class_end + method_end_rel
     method_text = content[method_start_abs:method_end_abs]
-    
-    return method_start_abs, method_end_abs, method_text, method_indent
+    return (method_start_abs, method_end_abs, method_text, method_indent)
+

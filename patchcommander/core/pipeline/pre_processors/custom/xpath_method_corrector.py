@@ -34,11 +34,13 @@ class XPathMethodCorrector(PreProcessor):
         Returns:
             bool: True if it's a Python function operation without a dot in the xpath
         """
-        return (operation.name == 'FILE' and 
-                operation.file_extension == 'py' and 
-                operation.xpath is not None and 
-                '.' not in operation.xpath and 
-                operation.attributes.get('target_type') == 'function')
+        return (
+            operation.name == "FILE"
+            and operation.file_extension == "py"
+            and operation.xpath is not None
+            and "." not in operation.xpath
+            and operation.attributes.get("target_type") == "function"
+        )
 
     def process(self, operation: PatchOperation) -> None:
         """
@@ -49,60 +51,89 @@ class XPathMethodCorrector(PreProcessor):
         """
         if not operation.content:
             return
-            
-        # Check if this is actually a method by looking for 'self' parameter
-        func_def_match = re.search(r'^\s*(?:async\s+)?def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*self\b', 
-                                  operation.content, re.MULTILINE)
-        
+
+        # Sprawdź, czy to metoda klasy na podstawie parametru 'self'
+        func_def_match = re.search(
+            "^\\s*(?:async\\s+)?def\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\\s*self\\b",
+            operation.content,
+            re.MULTILINE,
+        )
         if not func_def_match:
-            # Not a method (no self parameter)
-            return
-            
-        method_name = func_def_match.group(1)
-        function_name = operation.xpath
-        if method_name != function_name:
-            # Method name in content doesn't match xpath, something is off
-            console.print(f"[yellow]Warning: Method name '{method_name}' doesn't match xpath '{function_name}'[/yellow]")
-            return
-            
-        console.print(f"[blue]Found potential class method '{method_name}' with 'self' parameter but xpath doesn't include class name[/blue]")
-        
-        # Now we need to find which class this method belongs to
-        if not os.path.exists(operation.path):
-            console.print(f"[yellow]File '{operation.path}' doesn't exist, can't determine class name[/yellow]")
-            return
-            
-        try:
-            with open(operation.path, 'r', encoding='utf-8') as f:
-                file_content = f.read()
-                
-            # First try to find using tree-sitter parser
-            class_name = self._find_class_with_tree_sitter(file_content, method_name)
-            
-            # If tree-sitter approach fails, try regex-based approach as a fallback
-            if not class_name:
-                class_name = self._find_class_with_regex(file_content, method_name)
-                
-            if class_name:
-                console.print(f"[green]Found method '{method_name}' in class '{class_name}'[/green]")
-                
-                # Update the operation with all necessary attributes
-                operation.xpath = f"{class_name}.{method_name}"
-                operation.attributes['target_type'] = 'method'
-                operation.attributes['class_name'] = class_name
-                operation.attributes['method_name'] = method_name
-                
-                # Clear processors history to allow re-selection
-                operation.processors = []
-                
-                console.print(f"[green]Updated xpath to '{operation.xpath}' and cleared processor history[/green]")
+            # Sprawdź, czy to setter dla property
+            setter_match = re.search(
+                "^\\s*@(\\w+)\\.setter\\s*\\n+\\s*def\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\\s*self\\b",
+                operation.content,
+                re.MULTILINE,
+            )
+            if not setter_match:
                 return
             else:
-                console.print(f"[yellow]Could not find a class containing method '{method_name}'[/yellow]")
-                
+                # Znaleziono property setter
+                property_name = setter_match.group(1)
+                method_name = setter_match.group(2)
+                if property_name != method_name:
+                    console.print(
+                        f"[yellow]Warning: Property setter name '{method_name}' doesn't match property name '{property_name}'[/yellow]"
+                    )
+                method_name = setter_match.group(2)
+        else:
+            method_name = func_def_match.group(1)
+
+        function_name = operation.xpath
+
+        if method_name != function_name:
+            console.print(
+                f"[yellow]Warning: Method name '{method_name}' doesn't match xpath '{function_name}'[/yellow]"
+            )
+            return
+
+        console.print(
+            f"[blue]Found potential class method '{method_name}' with 'self' parameter but xpath doesn't include class name[/blue]"
+        )
+
+        # Sprawdź, czy plik istnieje
+        if not os.path.exists(operation.path):
+            console.print(
+                f"[yellow]File '{operation.path}' doesn't exist, can't determine class name[/yellow]"
+            )
+            return
+
+        try:
+            # Odczytaj zawartość pliku
+            with open(operation.path, "r", encoding="utf-8") as f:
+                file_content = f.read()
+
+            # Spróbuj znaleźć klasę za pomocą tree-sitter
+            class_name = self._find_class_with_tree_sitter(file_content, method_name)
+
+            # Jeśli nie znaleziono, spróbuj za pomocą regexu
+            if not class_name:
+                class_name = self._find_class_with_regex(file_content, method_name)
+
+            # Jeśli znaleziono klasę, zaktualizuj xpath
+            if class_name:
+                console.print(
+                    f"[green]Found method '{method_name}' in class '{class_name}'[/green]"
+                )
+                operation.xpath = f"{class_name}.{method_name}"
+                operation.attributes["target_type"] = "method"
+                operation.attributes["class_name"] = class_name
+                operation.attributes["method_name"] = method_name
+                operation.processors = []
+                console.print(
+                    f"[green]Updated xpath to '{operation.xpath}' and cleared processor history[/green]"
+                )
+                return
+            else:
+                console.print(
+                    f"[yellow]Could not find a class containing method '{method_name}'[/yellow]"
+                )
         except Exception as e:
-            console.print(f"[red]Error while trying to determine class name: {str(e)}[/red]")
+            console.print(
+                f"[red]Error while trying to determine class name: {str(e)}[/red]"
+            )
             import traceback
+
             console.print(f"[dim]{traceback.format_exc()}[/dim]")
     
     def _find_class_with_tree_sitter(self, file_content: str, method_name: str) -> str:
@@ -168,7 +199,7 @@ class XPathMethodCorrector(PreProcessor):
             # If we get here, we didn't find the method in any class
             return ""
         except Exception as e:
-            console.print(f"[red]Error in tree-sitter approach: {str(e)}[/red]")
+            console.print(f"Error in tree-sitter approach: {str(e)}")
             import traceback
             console.print(f"[dim]{traceback.format_exc()}[/dim]")
             return ""
@@ -210,5 +241,5 @@ class XPathMethodCorrector(PreProcessor):
                     
             return ""
         except Exception as e:
-            console.print(f"[red]Error in regex approach: {str(e)}[/red]")
+            console.print(f"Error in regex approach: {str(e)}")
             return ""
