@@ -26,7 +26,7 @@ setup(
     },
     include_package_data=True,
     package_data={
-        'patchcommander': ['PROMPT.md', 'FOR_LLM.md']
+        'patchcommander': ['FOR_LLM.md']
     },
     classifiers=[
         'Programming Language :: Python :: 3',

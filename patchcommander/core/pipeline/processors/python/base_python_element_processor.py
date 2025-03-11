@@ -45,35 +45,47 @@ class BasePythonElementProcessor(BaseDiffMatchPatchProcessor):
             else:
                 remaining_lines = lines[i:]
                 break
-                
-        return decorators, '\n'.join(remaining_lines)
 
-    def _format_element_with_decorators(self, content: str, base_indent: str, body_indent: str=None) -> str:
+        return decorators, "\n".join(remaining_lines)
+
+    def _format_element_with_decorators(
+        self, content: str, base_indent: str, body_indent: str = None
+    ) -> str:
         """
-        Formats a code element with proper indentation, handling decorators correctly.
-        
+        Formatuje element kodu (funkcję/metodę) z poprawnym wcięciem, uwzględniając dekoratory.
+
         Args:
-            content: Code content to format
-            base_indent: Base indentation for the element definition line
-            body_indent: Indentation for the body (defaults to base_indent + 4 spaces)
-            
+            content: Treść kodu do sformatowania
+            base_indent: Podstawowe wcięcie dla linii definicji
+            body_indent: Wcięcie dla ciała (domyślnie base_indent + 4 spacje)
+
         Returns:
-            Formatted code with proper indentation
+            Sformatowany kod z właściwym wcięciem
         """
+        # Jeśli body_indent nie zostało określone, użyj base_indent + 4 spacje
+        if body_indent is None:
+            body_indent = base_indent + "    "
+
+        # Wykryj i wyodrębnij dekoratory
         decorators, remaining_content = self._detect_element_decorators(content)
-        
-        # Format the main element (without decorators)
-        formatted_element = self._format_without_decorators(remaining_content, base_indent, body_indent)
+
+        # Sformatuj główny element (bez dekoratorów)
+        formatted_element = self._format_without_decorators(
+            remaining_content, base_indent, body_indent
+        )
         if not formatted_element:
             return ""
-            
-        # Format decorators
+
+        # Jeśli nie ma dekoratorów, zwróć tylko element
         if not decorators:
             return formatted_element
-            
-        formatted_decorators = '\n'.join(f'{base_indent}{decorator}' for decorator in decorators)
-        
-        # Combine decorators with the element
+
+        # Sformatuj dekoratory z poprawnym wcięciem
+        formatted_decorators = "\n".join(
+            f"{base_indent}{decorator}" for decorator in decorators
+        )
+
+        # Połącz dekoratory z elementem, zachowując odpowiednią wartość wcięcia
         return f'{formatted_decorators}\n{formatted_element}'
 
     def _find_element_boundaries(self, content: str, element_pattern: str) -> tuple:
@@ -147,57 +159,72 @@ class BasePythonElementProcessor(BaseDiffMatchPatchProcessor):
                 element_end += 1
         else:
             element_end = len(content)
-            
+
         element_content = content[decorator_start:element_end]
-        
+
         return decorator_start, element_end, element_content, indentation
 
-    def _normalize_whitespace(self, content: str, element_content: str, 
-                             new_element_content: str) -> tuple:
+    def _normalize_whitespace(
+        self, content: str, element_content: str, new_element_content: str
+    ) -> tuple:
         """
         Normalizes whitespace before and after the element to ensure consistent formatting.
-        
+
         Args:
             content: The full content being modified
             element_content: The original element content
             new_element_content: The new element content to insert
-            
+
         Returns:
             Tuple of (prefix, normalized_element, suffix)
         """
-        # Count empty lines before the element
         element_start = content.find(element_content)
+
+        # Count empty lines before the element
         pos = element_start - 1
         empty_lines_before = 0
-        
-        while pos >= 0 and content[pos] == '\n':
+        while pos >= 0 and content[pos] == "\n":
             empty_lines_before += 1
             pos -= 1
-            
+
         # Count empty lines after the element
         element_end = element_start + len(element_content)
         pos = element_end
         empty_lines_after = 0
-        
-        while pos < len(content) and content[pos] == '\n':
+        while pos < len(content) and content[pos] == "\n":
             empty_lines_after += 1
             pos += 1
-            
-        # Normalize empty lines to consistency
-        normalized_lines_before = '\n' * max(2, min(empty_lines_before, self.MAX_EMPTY_LINES))
-        normalized_lines_after = '\n' * max(2, min(empty_lines_after, self.MAX_EMPTY_LINES))
-        
-        # Split the content
-        prefix = content[:element_start - empty_lines_before]
-        suffix = content[element_end + empty_lines_after:]
-        
-        # Ensure proper line endings
-        if prefix and not prefix.endswith('\n'):
+
+        # Detect if the next element is a class
+        is_class_next = False
+        if element_end + empty_lines_after < len(content):
+            next_lines = content[element_end + empty_lines_after :].lstrip()
+            if next_lines.startswith("class "):
+                is_class_next = True
+
+        # Normalize spaces before based on context
+        normalized_lines_before = "\n" * min(max(1, empty_lines_before), 2)
+
+        # Ensure at least 2 empty lines before a class, otherwise 1-2 lines
+        if is_class_next:
+            normalized_lines_after = "\n\n"  # Force 2 newlines before a class
+        else:
+            normalized_lines_after = "\n" * min(
+                max(2, empty_lines_after), 3
+            )  # Between 2-3 newlines in other cases
+
+        # Prepare prefix and suffix
+        prefix = content[: element_start - empty_lines_before]
+        suffix = content[element_end + empty_lines_after :]
+
+        # Ensure clean transitions
+        if prefix and (not prefix.endswith("\n")):
             prefix += '\n'
-        if suffix and not suffix.startswith('\n'):
-            suffix = '\n\n' + suffix
-            
-        return prefix, normalized_lines_before + new_element_content + normalized_lines_after, suffix
+
+        if suffix and (not suffix.startswith('\n')):
+            suffix = '\n' + suffix
+
+        return (prefix, normalized_lines_before + new_element_content + normalized_lines_after, suffix)
 
     def _replace_element(self, content: str, element_name: str, element_pattern: str, 
                         new_element_content: str, indentation: str=None) -> str:
@@ -228,40 +255,68 @@ class BasePythonElementProcessor(BaseDiffMatchPatchProcessor):
         
         # Format the new element with proper indentation
         formatted_element = self._format_without_decorators(new_element_content, indent)
-        
+
         # Handle whitespace
-        prefix, normalized_element, suffix = self._normalize_whitespace(content, element_content, formatted_element)
-        
+        prefix, normalized_element, suffix = self._normalize_whitespace(
+            content, element_content, formatted_element
+        )
+
         # Combine everything
         return prefix + normalized_element + suffix
 
-    def _handle_element_not_found(self, content: str, element_name: str, new_element_content: str, indentation: str=None) -> str:
+    def _handle_element_not_found(
+        self,
+        content: str,
+        element_name: str,
+        new_element_content: str,
+        indentation: str = None,
+    ) -> str:
         """
         Handles the case when an element is not found and needs to be added.
-        
+
         Args:
             content: Content to modify
             element_name: Name of the element to add
             new_element_content: Content of the new element
             indentation: Indentation to use (if applicable)
-            
+
         Returns:
             Modified content with the element added
         """
-        # Format the new element
-        indent = indentation or ''
-        formatted_element = self._format_element_with_decorators(new_element_content, indent)
-        
-        # Determine where to add the element
+        indent = indentation or ""
+        formatted_element = self._format_element_with_decorators(
+            new_element_content, indent
+        )
+
         if not content:
-            return formatted_element
-            
-        # Add proper spacing
-        if content.endswith('\n\n'):
-            separator = ''
-        elif content.endswith('\n'):
-            separator = '\n'
+            return formatted_element + "\n\n"  # Always add two newlines at end
+
+        # Detect if adding this element would leave it too close to a class definition
+        next_is_class = False
+        if content.strip():
+            lines = content.splitlines()
+            # Check if any of the next 3 non-empty lines contain a class definition
+            non_empty_count = 0
+            for i in range(len(lines) - 1, max(0, len(lines) - 10), -1):
+                line = lines[i].strip()
+                if line:
+                    non_empty_count += 1
+                    if line.startswith("class "):
+                        next_is_class = True
+                        break
+                if non_empty_count >= 3:
+                    break
+
+        # Determine appropriate separator
+        if content.endswith("\n\n"):
+            separator = ""
+        elif content.endswith("\n"):
+            separator = "\n"
         else:
             separator = '\n\n'
-            
-        return content + separator + formatted_element + '\n\n'
+
+        # Ensure proper spacing at the end
+        if next_is_class:
+            return content + separator + formatted_element + '\n\n\n'  # Extra spacing before a class
+        else:
+            return content + separator + formatted_element + '\n\n'  # Standard spacing
