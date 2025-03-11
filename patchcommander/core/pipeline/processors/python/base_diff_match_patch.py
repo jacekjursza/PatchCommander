@@ -35,15 +35,15 @@ class BaseDiffMatchPatchProcessor:
         self, content: str, base_indent: str, body_indent: str = None
     ) -> str:
         """
-        Formatuje kod z odpowiednim wcięciem.
+        Formats the code with the appropriate indentation.
 
         Args:
-            content: Treść kodu do sformatowania
-            base_indent: Podstawowe wcięcie dla pierwszej linii
-            body_indent: Wcięcie dla reszty kodu (domyślnie base_indent + 4 spacje)
+            content: The code content to format.
+            base_indent: The base indentation for the first line.
+            body_indent: The indentation for the rest of the code (defaults to base_indent + 4 spaces).
 
         Returns:
-            Sformatowany kod z właściwym wcięciem
+            The formatted code with the correct indentation.
         """
         if body_indent is None:
             body_indent = base_indent + "    "
@@ -52,7 +52,7 @@ class BaseDiffMatchPatchProcessor:
         if not lines:
             return ""
 
-        # Wyodrębnij dekoratory
+        # Extract decorators
         decorators = []
         remaining_lines = []
 
@@ -66,37 +66,37 @@ class BaseDiffMatchPatchProcessor:
                 remaining_lines = lines[i:]
                 break
 
-        # Jeśli nie ma dekoratorów, użyj oryginalnej metody
+        # If there are no decorators, use the original method
         if not decorators:
             return self._format_without_decorators(content, base_indent, body_indent)
 
-        # Sformatuj część funkcji/metody
+        # Format the function/method part
         remaining_content = "\n".join(remaining_lines)
         formatted_function = self._format_without_decorators(
             remaining_content, base_indent, body_indent
         )
 
-        # Sformatuj dekoratory
+        # Format the decorators
         formatted_decorators = "\n".join(
             f"{base_indent}{decorator}" for decorator in decorators
         )
 
-        # Połącz dekoratory z sformatowaną funkcją
+        # Combine decorators with the formatted function
         return f"{formatted_decorators}\n{formatted_function}"
 
     def _format_without_decorators(
         self, content: str, base_indent: str, body_indent: str = None
     ) -> str:
         """
-        Formatuje kod bez dekoratorów z odpowiednim wcięciem.
+        Formats the code without decorators with the appropriate indentation.
 
         Args:
-            content: Treść kodu do sformatowania
-            base_indent: Podstawowe wcięcie dla pierwszej linii
-            body_indent: Wcięcie dla reszty kodu (domyślnie base_indent + 4 spacje)
+            content: The code content to format.
+            base_indent: The base indentation for the first line.
+            body_indent: The indentation for the rest of the code (defaults to base_indent + 4 spaces).
 
         Returns:
-            Sformatowany kod z właściwym wcięciem
+            The formatted code with the correct indentation.
         """
         if body_indent is None:
             body_indent = base_indent + "    "
@@ -105,25 +105,25 @@ class BaseDiffMatchPatchProcessor:
         if not lines:
             return ""
 
-        # Sformatuj pierwszą linię (definicję metody/funkcji)
+        # Format the first line (method/function definition)
         formatted = [f"{base_indent}{lines[0]}"]
 
-        # Jeśli mamy tylko jedną linię, zwróć ją od razu
+        # If there is only one line, return it immediately
         if len(lines) == 1:
             return formatted[0]
 
-        # Obsługa reszty ciała funkcji/metody z dokładnym formatowaniem docstringów
+        # Handle the rest of the function/method body with accurate docstring formatting
         for i, line in enumerate(lines[1:], 1):
-            # Puste linie pozostają pustymi liniami
+            # Empty lines remain empty lines
             if not line.strip():
                 formatted.append("")
                 continue
 
-            # Usuń pierwotne wcięcie i dodaj nowe
+            # Remove the original indentation and add the new one
             stripped_line = line.lstrip()
             formatted.append(f"{body_indent}{stripped_line}")
 
-        # Połącz wszystkie linie w jeden tekst
+        # Combine all lines into a single text
         return '\n'.join(formatted)
 
     def _normalize_empty_lines(self, text: str, count: int=None) -> str:

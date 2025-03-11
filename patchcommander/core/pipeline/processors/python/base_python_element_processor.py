@@ -3,10 +3,10 @@ Base processor for Python code elements (functions and methods).
 Provides common functionality for both function and method processors.
 """
 import re
+
 from rich.console import Console
+
 from .base_diff_match_patch import BaseDiffMatchPatchProcessor
-from ...processor_base import Processor
-from ...models import PatchOperation, PatchResult
 from .....parsers.python_parser import PythonParser
 
 console = Console()
@@ -52,40 +52,40 @@ class BasePythonElementProcessor(BaseDiffMatchPatchProcessor):
         self, content: str, base_indent: str, body_indent: str = None
     ) -> str:
         """
-        Formatuje element kodu (funkcję/metodę) z poprawnym wcięciem, uwzględniając dekoratory.
+        Formats a code element (function/method) with correct indentation, taking into account decorators.
 
         Args:
-            content: Treść kodu do sformatowania
-            base_indent: Podstawowe wcięcie dla linii definicji
-            body_indent: Wcięcie dla ciała (domyślnie base_indent + 4 spacje)
+            content: The code content to format.
+            base_indent: The base indentation for the definition line.
+            body_indent: The indentation for the body (defaults to base_indent + 4 spaces).
 
         Returns:
-            Sformatowany kod z właściwym wcięciem
+            The formatted code with the proper indentation.
         """
-        # Jeśli body_indent nie zostało określone, użyj base_indent + 4 spacje
+        # If body_indent is not specified, use base_indent + 4 spaces
         if body_indent is None:
             body_indent = base_indent + "    "
 
-        # Wykryj i wyodrębnij dekoratory
+        # Detect and extract decorators
         decorators, remaining_content = self._detect_element_decorators(content)
 
-        # Sformatuj główny element (bez dekoratorów)
+        # Format the main element (without decorators)
         formatted_element = self._format_without_decorators(
             remaining_content, base_indent, body_indent
         )
         if not formatted_element:
             return ""
 
-        # Jeśli nie ma dekoratorów, zwróć tylko element
+        # If there are no decorators, return only the element
         if not decorators:
             return formatted_element
 
-        # Sformatuj dekoratory z poprawnym wcięciem
+        # Format the decorators with correct indentation
         formatted_decorators = "\n".join(
             f"{base_indent}{decorator}" for decorator in decorators
         )
 
-        # Połącz dekoratory z elementem, zachowując odpowiednią wartość wcięcia
+        # Combine the decorators with the element, preserving the correct indentation
         return f'{formatted_decorators}\n{formatted_element}'
 
     def _find_element_boundaries(self, content: str, element_pattern: str) -> tuple:
