@@ -1,6 +1,6 @@
 [project]
 name = "patchcommander"
-version = "1.1.6"
+version = "1.1.7"
 description = "AI-assisted coding automation tool for streamlined LLM code integration"
 readme = "README.md"
 authors = [
@@ -40,7 +40,6 @@ packages = [
     "patchcommander",
     "patchcommander.core",
     "patchcommander.parsers",
-    "patchcommander.operations",
     "patchcommander.core.pipeline",
     "patchcommander.core.pipeline.processors",
     "patchcommander.core.pipeline.pre_processors",
