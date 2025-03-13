@@ -160,7 +160,7 @@ def format_with_indentation(code: str, base_indent: str, body_indent: str = None
     
     return '\n'.join(formatted)
 
-def normalize_empty_lines(text: str, count: int = 2) -> str:
+def normalize_empty_lines(text: str, count: int=2) -> str:
     """
     Normalizes the number of empty lines to a specified count.
 
@@ -171,5 +171,31 @@ def normalize_empty_lines(text: str, count: int = 2) -> str:
     Returns:
         Text with normalized empty lines
     """
-    text = text.rstrip()
-    return text + '\n' * count
+    # First, ensure consistent line endings
+    text = text.replace('\r\n', '\n')
+
+    # Split the text into lines
+    lines = text.split('\n')
+
+    # Process the lines to normalize consecutive empty lines
+    result_lines = []
+    empty_line_count = 0
+
+    for line in lines:
+        if not line.strip():
+            empty_line_count += 1
+            if empty_line_count <= count:
+                result_lines.append('')
+        else:
+            empty_line_count = 0
+            result_lines.append(line)
+
+    # Join the lines and return
+    result = '\n'.join(result_lines)
+
+    # Remove trailing whitespace but ensure the result ends with a newline if needed
+    if text.endswith('\n') and not result.endswith('\n'):
+        result += '\n'
+
+    return result
+

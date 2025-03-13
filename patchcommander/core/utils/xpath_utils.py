@@ -139,19 +139,10 @@ def find_class_method(content: str, class_name: str, method_name: str) -> Tuple[
         class_content = content[class_end:class_end + next_class_match.start()]
     else:
         class_content = content[class_end:]
-
-    # Enhanced method pattern that better handles decorators with parameters
-    method_pattern = '(\\n+)([ \\t]*)((?:@[^\\n]+\\n+[ \\t]*)*)(def\\s+' + re.escape(method_name) + '\\s*\\([^)]*\\)\\s*(->.*?)?:)'
+    method_pattern = '(\\n+)([ \\t]*)(async\\s+)?def\\s+' + re.escape(method_name) + '\\s*\\([^)]*\\)\\s*(->.*?)?:'
     method_match = re.search(method_pattern, class_content)
-
-    if not method_match:
-        # Try with a more flexible pattern for decorators with parameters
-        decorator_pattern = '(\\n+)([ \\t]*)((?:@[^\\n(]+(?:\\([^)]*\\))?\\n+[ \\t]*)*)(def\\s+' + re.escape(method_name) + '\\s*\\([^)]*\\)\\s*(->.*?)?:)'
-        method_match = re.search(decorator_pattern, class_content)
-
     if not method_match:
         return (None, None, None, None)
-
     method_indent = method_match.group(2)
     method_start_rel = method_match.start()
     method_start_abs = class_end + method_start_rel

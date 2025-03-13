@@ -64,10 +64,7 @@ class Pipeline:
             return ''
         try:
             with open(path, 'r', encoding='utf-8') as file:
-                content = file.read()
-            # Normalize line endings for consistent processing
-            from patchcommander.core.text_utils import normalize_line_endings
-            return normalize_line_endings(content)
+                return file.read()
         except Exception as e:
             console.print(f"[bold red]Error reading file '{path}': {e}[/bold red]")
             return ''

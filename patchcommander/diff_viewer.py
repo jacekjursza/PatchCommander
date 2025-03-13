@@ -19,6 +19,7 @@ from textual.message import Message
 
 console = Console()
 
+
 class DiffLine(Static):
     """Widget representing a single line in the diff."""
 
@@ -37,6 +38,7 @@ class DiffLine(Static):
             self.update(Text(f"~ {self.line_content}", style="yellow"))
         else:
             self.update(Text(f"  {self.line_content}"))
+
 
 class DiffPanel(VerticalScroll):
     """Panel displaying one side of the diff (old or new code)."""
@@ -76,6 +78,7 @@ class DiffPanel(VerticalScroll):
         ):
             self.parent.app.post_message(self.parent.SyncScroll(self))
 
+
 class ErrorPanel(Static):
     """Panel displaying errors related to the current file."""
 
@@ -97,6 +100,7 @@ class ErrorPanel(Static):
                 box=box.ROUNDED,
             )
         )
+
 
 class DiffContainer(Horizontal):
     """Container for diff panels with synchronized scrolling."""
@@ -163,6 +167,7 @@ class DiffContainer(Horizontal):
             scroll_percentage * target_max_scroll, target_max_scroll
         )
         self._sync_in_progress = False
+
 
 class DiffViewer(App):
     """Interactive side-by-side diff viewer."""
@@ -322,6 +327,7 @@ class DiffViewer(App):
         if self.diff_container:
             self.diff_container.left_panel.scroll_end()
 
+
 def show_less_pager(content: str) -> None:
     with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".txt") as tmp:
         tmp.write(content)
@@ -338,43 +344,27 @@ def show_less_pager(content: str) -> None:
         except:
             pass
 
-def show_interactive_diff(old_content: str, new_content: str, file_path: str, errors: List[str]=None) -> str:
-    """
-    Shows an interactive diff viewer for comparing old and new content.
 
-    Args:
-        old_content: Original content
-        new_content: New content
-        file_path: Path to the file
-        errors: Optional list of errors
-
-    Returns:
-        str: User's decision ('yes', 'no', 'skip', or 'quit')
-    """
+def show_interactive_diff(
+    old_content: str, new_content: str, file_path: str, errors: List[str] = None
+) -> str:
     try:
-        from patchcommander.core.text_utils import normalize_line_endings
-
-        # Normalize line endings
-        normalized_old = normalize_line_endings(old_content)
-        normalized_new = normalize_line_endings(new_content)
-
-        # Check if there are actual changes after normalization
-        has_changes = normalized_old != normalized_new
-
-        app = DiffViewer(normalized_old, normalized_new, file_path, errors=errors, has_changes=has_changes)
+        has_changes = old_content != new_content
+        app = DiffViewer(
+            old_content, new_content, file_path, errors=errors, has_changes=has_changes
+        )
         result = app.run()
-
-        if result in (True, 'yes'):
-            return 'yes'
-        elif result in (False, 'no'):
-            return 'no'
-        elif result == 'skip':
-            return 'skip'
+        if result in (True, "yes"):
+            return "yes"
+        elif result in (False, "no"):
+            return "no"
+        elif result == "skip":
+            return "skip"
         else:
-            return 'quit'
+            return "quit"
     except Exception as e:
         import traceback
-        print(f'[DiffViewer] Error: {str(e)}')
-        print(traceback.format_exc())
-        return 'no'
 
+        print(f"[DiffViewer] Error: {str(e)}")
+        print(traceback.format_exc())
+        return "no"

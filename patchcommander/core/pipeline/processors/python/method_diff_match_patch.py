@@ -165,20 +165,11 @@ class DiffMatchPatchPythonMethodProcessor(BasePythonMethodProcessor, BasePythonE
                         property_name = property_match.group(1)
                         setter_pattern = f'@{property_name}\\.setter'
                     break
-
-            # Improved pattern to match methods with various decorator types, including those with parameters
             if is_property_setter and setter_pattern:
                 method_pattern = f'(\\n+)([ \\t]*){setter_pattern}\\s*\\n+[ \\t]*def\\s+{re.escape(method_name)}\\s*\\('
             else:
-                # Enhanced pattern that handles decorators with parameters
-                method_pattern = f'(\\n+)([ \\t]*)((?:@[^\\n]+\\n+[ \\t]*)*)(def\\s+{re.escape(method_name)}\\s*\\([^)]*\\)\\s*(->\\s*[^:]+)?\\s*:)'
-
+                method_pattern = f'(\\n+)([ \\t]*)((?:@[^\\n]+\\n+[ \\t]*)*)((?:async\\s+)?def\\s+{re.escape(method_name)}\\s*\\([^)]*\\)\\s*(->\\s*[^:]+)?\\s*:)'
             method_match = re.search(method_pattern, class_content)
-            if not method_match:
-                # Try with a more flexible pattern for decorators with parameters
-                decorator_pattern = f'(\\n+)([ \\t]*)((?:@[^\\n(]+(?:\\([^)]*\\))?\\n+[ \\t]*)*)(def\\s+{re.escape(method_name)}\\s*\\([^)]*\\)\\s*(->\\s*[^:]+)?\\s*:)'
-                method_match = re.search(decorator_pattern, class_content)
-
             if not method_match:
                 console.print(f'[yellow]Method {method_name} does not exist in class {class_name} - adding a new one[/yellow]')
                 base_indent = self._detect_base_indent(class_content)
@@ -225,7 +216,7 @@ class DiffMatchPatchPythonMethodProcessor(BasePythonMethodProcessor, BasePythonE
                 if current_indent <= len(method_indent):
                     if line.lstrip().startswith('@'):
                         break
-                    if re.match('^\\s*(def|class)\\s+', line):
+                    if re.match('^\\s*((?:async\\s+)?def|class)\\s+', line):
                         break
                     if current_indent < len(method_indent):
                         break

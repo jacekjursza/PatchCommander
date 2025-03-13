@@ -91,78 +91,54 @@ class BasePythonElementProcessor(BaseDiffMatchPatchProcessor):
     def _find_element_boundaries(self, content: str, element_pattern: str) -> tuple:
         """
         Finds the boundaries of a code element (function or method) using the given pattern.
-        
+
         Args:
             content: The code content to search in
             element_pattern: Regex pattern to match the element
-            
+
         Returns:
             Tuple of (start_position, end_position, element_content, indentation)
             or (None, None, None, None) if element not found
         """
         matches = list(re.finditer(element_pattern, content, re.MULTILINE))
         if not matches:
-            return None, None, None, None
-            
-        match = matches[-1]  # Use the last match in case there are multiple matches
-        
-        # Determine the start position
+            return (None, None, None, None)
+        match = matches[-1]
         prefix = match.group(1) if len(match.groups()) > 0 else ''
         if prefix == '\n':
             element_start = match.start(1)
         else:
             element_start = match.start()
-            
-        # Get the indentation
         indentation = match.group(2) if len(match.groups()) > 1 else ''
-        
-        # Look for decorators before the function/method definition
         decorator_start = element_start
-        # Backtrack to find decorators
         pos = element_start - 1
         decorator_lines = []
-        
-        # Go back until we find a non-decorator line or beginning of content
         while pos >= 0:
-            # Find the start of the current line
             line_start = content.rfind('\n', 0, pos)
-            if line_start == -1:  # We're at the beginning of content
+            if line_start == -1:
                 line_start = 0
             else:
-                line_start += 1  # Skip the newline character
-                
-            line = content[line_start:pos+1].strip()
-            
-            # If line is a decorator that belongs to our function (has correct indentation)
-            if line.startswith('@') and (line_start == 0 or content[line_start-1:line_start] == '\n'):
-                # Check indentation
+                line_start += 1
+            line = content[line_start:pos + 1].strip()
+            if line.startswith('@') and (line_start == 0 or content[line_start - 1:line_start] == '\n'):
                 spaces_before = len(content[line_start:]) - len(content[line_start:].lstrip())
                 if spaces_before == len(indentation):
                     decorator_start = line_start
                     decorator_lines.insert(0, line)
                     pos = line_start - 1
                     continue
-            
-            # If we reach this point, we've found a non-decorator line
             break
-        
-        # Find the end of the element
         rest_of_content = content[match.end():]
-        
-        # Pattern to find the next element at the same or lower indentation level
-        next_element_pattern = f"(\\n|^)({re.escape(indentation)}(class|def)\\s+|{re.escape(indentation[:-4] if len(indentation) >= 4 else '')}(class|def)\\s+)"
+        next_element_pattern = f"(\\n|^)({re.escape(indentation)}((?:async\\s+)?class|(?:async\\s+)?def)\\s+|{re.escape(indentation[:-4] if len(indentation) >= 4 else '')}((?:async\\s+)?class|(?:async\\s+)?def)\\s+)"
         next_element_match = re.search(next_element_pattern, rest_of_content)
-        
         if next_element_match:
             element_end = match.end() + next_element_match.start()
             if next_element_match.group(1) == '\n':
                 element_end += 1
         else:
             element_end = len(content)
-
         element_content = content[decorator_start:element_end]
-
-        return decorator_start, element_end, element_content, indentation
+        return (decorator_start, element_end, element_content, indentation)
 
     def _normalize_whitespace(
         self, content: str, element_content: str, new_element_content: str
