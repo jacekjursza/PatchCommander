@@ -24,6 +24,7 @@ class ProcessorRegistry:
         cls._processors_by_priority = {}
         from .file_processor import FileProcessor
         from .operation_processor import OperationProcessor
+        from .python.smart_class_processor import SmartClassProcessor
         from .python.class_processor import PythonClassProcessor
         from .python.method_diff_match_patch import DiffMatchPatchPythonMethodProcessor
         from .python.function_diff_match_patch import DiffMatchPatchPythonFunctionProcessor
