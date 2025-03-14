@@ -60,7 +60,14 @@ def find_resource_file(filename):
     Returns:
         str or None: Path to the file if found, None otherwise
     """
-    possible_locations = [os.path.join(os.getcwd(), filename), os.path.join(os.path.dirname(os.path.abspath(__file__)), filename), os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), filename), os.path.join(sys.prefix, 'share', 'patchcommander', filename), os.path.join(os.path.expanduser('~'), '.patchcommander', filename)]
+    possible_locations = [
+        os.path.join(os.getcwd(), filename),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), filename),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), filename),
+        os.path.join(sys.prefix, 'share', 'patchcommander', filename),
+        os.path.join(os.path.expanduser('~'), '.patchcommander', filename)
+    ]
+
     for location in possible_locations:
         if os.path.exists(location):
             return location
@@ -111,7 +118,28 @@ def setup_argument_parser():
     Returns:
         ArgumentParser: Configured argument parser
     """
-    parser = argparse.ArgumentParser(description='Process code fragments marked with tags for AI-assisted development.', formatter_class=argparse.RawDescriptionHelpFormatter, epilog='\nExamples:\n  pcmd input.txt             ---> Process tags from input.txt\n  pcmd                       ---> Process tags from clipboard\n  pcmd --normalize-only file.txt  ---> Only normalize line endings\n  pcmd --config              ---> Show current configuration\n  pcmd --set backup_enabled False  ---> Change a configuration value\n  pcmd --diagnose            ---> Only diagnose paths without applying changes\n')
+    parser = argparse.ArgumentParser(description='Process code fragments marked with tags for AI-assisted development.',
+                                     formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     epilog='\nExamples:\n'
+                                            'pcmd input.txt             '
+                                            '---> '
+                                            'Process tags from input.txt\n  '
+                                            'pcmd                       '
+                                            '---> '
+                                            'Process tags from clipboard\n  '
+                                            'pcmd --normalize-only file.txt  '
+                                            '---> '
+                                            'Only normalize line endings\n  '
+                                            'pcmd --config              '
+                                            '---> '
+                                            'Show current configuration\n  '
+                                            'pcmd --set backup_enabled False  '
+                                            '---> '
+                                            'Change a configuration value\n  '
+                                            'pcmd --diagnose            '
+                                            '---> '
+                                            'Only diagnose paths without applying changes\n')
+
     parser.add_argument('input_file', nargs='?', help='Path to file with tags. If not provided, clipboard content will be used.')
     parser.add_argument('--normalize-only', action='store_true', help='Only normalize line endings in the specified file')
     parser.add_argument('--version', action='store_true', help='Show version information')
