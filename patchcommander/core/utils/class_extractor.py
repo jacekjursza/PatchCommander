@@ -315,95 +315,141 @@ class ClassFeatureExtractor:
             added_methods=added_methods,
             removed_methods=removed_methods,
             modified_methods=modified_methods,
-            has_significant_changes=has_significant_changes
+            has_significant_changes=has_significant_changes,
         )
-    
+
     @staticmethod
     def merge_classes(original_class_code: str, new_class_code: str) -> Tuple[str, bool]:
-        """
-        Intelligently merge two class versions based on their features.
-        
-        Args:
-            original_class_code: Code of the original class
-            new_class_code: Code of the new class
-            
-        Returns:
-            Tuple of (merged_code, needs_confirmation)
-        """
+
+        import re
+
+        # Extract features from both classes
         original_features = ClassFeatureExtractor.extract_features_from_code(original_class_code)
         new_features = ClassFeatureExtractor.extract_features_from_code(new_class_code)
-        
+
+        # If extraction failed, fall back to new class code
         if not original_features or not new_features:
-            return new_class_code, False
-        
+            return (new_class_code, False)
+
+        # Calculate diff to determine if changes are significant
         diff = ClassFeatureExtractor.diff_features(original_features, new_features)
-        
-        # Case 1: Only fields changed, preserve all methods
-        if ((diff.added_fields or diff.removed_fields or diff.modified_fields) and
-            not diff.added_methods and not diff.modified_methods and diff.removed_methods):
-            
-            # Get class definition line and indentation
-            class_def_pattern = rf'class\s+{re.escape(original_features.name)}\s*(?:\([^)]*\))?\s*:'
-            class_def_match = re.search(class_def_pattern, original_class_code)
-            class_def_line = class_def_match.group(0) if class_def_match else f"class {original_features.name}:"
-            
-            # Extract indentation from the original class
-            first_line_pattern = r'class.*?:\s*\n(\s+)'
-            indent_match = re.search(first_line_pattern, original_class_code)
-            base_indent = indent_match.group(1) if indent_match else "    "
-            
-            # Get new fields from the new class code
-            fields_lines = []
-            for line in new_class_code.split('\n'):
-                line_strip = line.strip()
-                if line_strip and not line_strip.startswith('class '):
-                    if ':' in line_strip and not line_strip.startswith('def ') and not line_strip.startswith('@'):
-                        # This is a field definition
-                        fields_lines.append(f"{base_indent}{line_strip}")
-            
-            # Get methods from the original class
-            methods_lines = []
-            in_method = False
-            method_indentation = ""
-            for line in original_class_code.split('\n'):
-                line_strip = line.strip()
-                
-                # Detect decorator or method start
-                if line_strip.startswith('@') or line_strip.startswith('def '):
-                    in_method = True
-                    methods_lines.append(line)
-                    if not method_indentation and line.startswith(base_indent):
-                        method_indentation = line[:len(base_indent)]
+
+        # Get class declaration from new class
+        class_pattern = f'class\\s+{re.escape(original_features.name)}\\s*(?:\\([^)]*\\))?\\s*:'
+        class_match = re.search(class_pattern, new_class_code)
+        class_def = class_match.group(0) if class_match else f'class {original_features.name}:'
+
+        # Basic indentation
+        base_indent = "    "
+
+        # Extract fields from new class
+        field_lines = []
+        in_class = False
+        in_fields = False
+        new_code_lines = new_class_code.split('\n')
+        for line in new_code_lines:
+            line_strip = line.strip()
+
+            # Check for class declaration
+            if re.match(class_pattern, line_strip):
+                in_class = True
+                in_fields = True
+                continue
+
+            if in_class and in_fields:
+                # Skip empty lines
+                if not line_strip:
                     continue
-                
-                # Inside method body or between methods
-                if in_method:
-                    # Check if we've exited the method
-                    if line.startswith(base_indent) and not line.startswith(base_indent + " "):
-                        # If this is a field line, we've exited the method
-                        if ':' in line_strip and not line_strip.startswith('def ') and not line_strip.startswith('@'):
-                            in_method = False
-                        else:
-                            # Still in method or start of another method/decorator
-                            methods_lines.append(line)
-                            continue
-                    else:
-                        # Still in method body
-                        methods_lines.append(line)
-                        continue
-            
-            # Combine everything
-            merged_lines = [class_def_line]
-            if fields_lines:
-                merged_lines.extend(fields_lines)
-            else:
-                merged_lines.append(f"{base_indent}pass")
-            
-            if methods_lines:
-                merged_lines.append("")  # Add separation between fields and methods
-                merged_lines.extend(methods_lines)
-            
-            return "\n".join(merged_lines), diff.has_significant_changes
-            
-        # Default: Just use the new class
-        return new_class_code, diff.has_significant_changes
+
+                # Check if we've reached a method or decorator
+                if line_strip.startswith('def ') or line_strip.startswith('@'):
+                    in_fields = False
+                    continue
+
+                # This is a field - ensure it has proper indentation
+                field_lines.append(f"{base_indent}{line_strip}")
+
+        # Collect method names from both classes
+        original_method_names = set()
+        for collection in [original_features.methods, original_features.dunder_methods,
+                           original_features.properties, original_features.class_methods,
+                           original_features.static_methods]:
+            for method in collection:
+                original_method_names.add(method.name)
+
+        new_method_names = set()
+        for collection in [new_features.methods, new_features.dunder_methods,
+                           new_features.properties, new_features.class_methods,
+                           new_features.static_methods]:
+            for method in collection:
+                new_method_names.add(method.name)
+
+        # Methods to keep from original (those not in new class)
+        methods_to_keep = original_method_names - new_method_names
+
+        # Extract method code blocks with proper indentation
+        method_blocks = []
+
+        # Helper function for properly indenting method code
+        def format_method(method_code):
+            lines = method_code.strip().split('\n')
+            result = []
+
+            for i, line in enumerate(lines):
+                line_strip = line.strip()
+                if not line_strip:
+                    result.append("")
+                    continue
+
+                # Method definition or decorator
+                if line_strip.startswith('def ') or line_strip.startswith('@'):
+                    result.append(f"{base_indent}{line_strip}")
+                # Method body
+                else:
+                    result.append(f"{base_indent}{base_indent}{line_strip}")
+
+            return '\n'.join(result)
+
+        # Helper to extract method with regex
+        def extract_method(code, method_name):
+            # Pattern to match method with decorators
+            pattern = f'((?:\\s*@[^\\n]+\\n+)*\\s*def\\s+{re.escape(method_name)}\\s*\\([^\\n]*\\).*?(?:\\n(?:(?!\\n\\s*(?:def|class|@)\\b)[^\\n]*))*)(?=\\n\\s*(?:def|class|@)\\b|$)'
+            match = re.search(pattern, code, re.DOTALL)
+            if match:
+                return match.group(1).strip()
+            return None
+
+        # First add methods from new class
+        for method_name in new_method_names:
+            method_code = extract_method(new_class_code, method_name)
+            if method_code:
+                method_blocks.append(format_method(method_code))
+
+        # Then add methods from original class that aren't in new class
+        for method_name in methods_to_keep:
+            method_code = extract_method(original_class_code, method_name)
+            if method_code:
+                method_blocks.append(format_method(method_code))
+
+        # Build the merged class
+        result = [class_def]
+
+        # Add fields
+        if field_lines:
+            for field in field_lines:
+                result.append(field)
+        else:
+            result.append(f"{base_indent}pass")
+
+        # Add methods with proper spacing
+        if method_blocks:
+            # Add spacing between fields and methods
+            result.append("")
+
+            # Add each method with spacing between methods
+            for i, method in enumerate(method_blocks):
+                if i > 0:
+                    result.append("")  # Blank line between methods
+                result.append(method)  # Add formatted method
+
+        return ('\n'.join(result), diff.has_significant_changes)

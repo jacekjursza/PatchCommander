@@ -240,12 +240,15 @@ def generate_side_by_side_diff(old_lines, new_lines, file_path):
                 table.add_row(old_line, new_line)
         elif tag == 'delete':
             for line_num in range(i1, i2):
-                table.add_row(Text(old_lines[line_num], style='red'), Text('', style=''))
-        elif tag == 'insert':
+                table.add_row(
+                    Text(old_lines[line_num], style="red"), Text("", style="")
+                )
+        elif tag == "insert":
             for line_num in range(j1, j2):
-                table.add_row(Text('', style=''), Text(new_lines[line_num], style='green'))
+                table.add_row(
+                    Text("", style=""), Text(new_lines[line_num], style="green")
+                )
     return table
-
 
 
 def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
@@ -259,88 +262,134 @@ def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
         Dict[str, bool]: Dictionary with file paths and approval flags
     """
     approvals = {}
-
     for result in results:
         if result.has_errors():
-            console.print(f'[red]Errors found in processing {result.path}:[/red]')
+            console.print(f"[red]Errors found in processing {result.path}:[/red]")
             for error in result.errors:
-                console.print(f'  - {error}')
+                console.print(f"  - {error}")
             for operation in result.operations:
                 for error in operation.errors:
-                    console.print(f'  - {error}')
-            if config.get('default_yes_to_all', False):
-                console.print(f"[blue]Continue with other changes despite errors in {result.path}? (Automatically answered 'y' due to default_yes_to_all setting)[/blue]")
+                    console.print(f"  - {error}")
+            if config.get("default_yes_to_all", False):
+                console.print(
+                    f"[blue]Continue with other changes despite errors in {result.path}? (Automatically answered 'y' due to default_yes_to_all setting)[/blue]"
+                )
                 approvals[result.path] = False
                 continue
-            answer = Prompt.ask(f'Continue with other changes despite errors in {result.path}?', choices=['y', 'n'], default='y')
-            if answer.lower() != 'y':
+            answer = Prompt.ask(
+                f"Continue with other changes despite errors in {result.path}?",
+                choices=["y", "n"],
+                default="y",
+            )
+            if answer.lower() != "y":
                 approvals[result.path] = False
-                console.print(f'[yellow]Skipping changes to {result.path}.[/yellow]')
+                console.print(f"[yellow]Skipping changes to {result.path}.[/yellow]")
                 continue
-
         if result.original_content == result.current_content:
-            console.print(f'[blue]No changes to {result.path}[/blue]')
+            console.print(f"[blue]No changes to {result.path}[/blue]")
             approvals[result.path] = False
             continue
-
-        old_lines = result.original_content.splitlines()
-        new_lines = result.current_content.splitlines()
-
-        diff_lines = list(difflib.unified_diff(old_lines, new_lines, fromfile=f'current: {result.path}', tofile=f'new: {result.path}', lineterm=''))
-        if not diff_lines:
-            console.print(f'[blue]No changes detected for {result.path}.[/blue]')
-            approvals[result.path] = False
-            continue
-
-        if config.get('default_yes_to_all', False):
-            console.print(f"[blue]Apply changes to {result.path}? (Automatically answered 'y' due to default_yes_to_all setting)[/blue]")
+        if hasattr(result, "approved") and result.approved:
+            console.print(
+                f"[green]Changes to {result.path} already approved by a processor.[/green]"
+            )
             approvals[result.path] = True
             continue
-
-        # Always use interactive diff viewer
+        old_lines = result.original_content.splitlines()
+        new_lines = result.current_content.splitlines()
+        diff_lines = list(
+            difflib.unified_diff(
+                old_lines,
+                new_lines,
+                fromfile=f"current: {result.path}",
+                tofile=f"new: {result.path}",
+                lineterm="",
+            )
+        )
+        if not diff_lines:
+            console.print(f"[blue]No changes detected for {result.path}.[/blue]")
+            approvals[result.path] = False
+            continue
+        if config.get("default_yes_to_all", False):
+            console.print(
+                f"[blue]Apply changes to {result.path}? (Automatically answered 'y' due to default_yes_to_all setting)[/blue]"
+            )
+            approvals[result.path] = True
+            continue
         try:
             from patchcommander.diff_viewer import show_interactive_diff
+
             interactive_result = show_interactive_diff(
                 result.original_content,
                 result.current_content,
                 result.path,
-                errors=result.errors
+                errors=result.errors,
             )
 
-            if interactive_result == "yes":
+            # Obsługa nowego formatu zwracanego przez show_interactive_diff (decision, content)
+            if isinstance(interactive_result, tuple) and len(interactive_result) == 2:
+                decision, updated_content = interactive_result
+                console.print(
+                    f"[green]Interactive diff selection result: {decision}[/green]"
+                )
+
+                if decision == "yes":
+                    # Aktualizuj zawartość z wybraną metodą mergowania
+                    result.current_content = updated_content
+                    approvals[result.path] = True
+                    console.print(f"[green]Change approved for {result.path}.[/green]")
+                elif decision == "no":
+                    approvals[result.path] = False
+                    console.print(
+                        f"[yellow]Changes to {result.path} rejected.[/yellow]"
+                    )
+                elif decision == "skip":
+                    approvals[result.path] = False
+                    console.print(
+                        f"[yellow]Skipping changes to {result.path} for now.[/yellow]"
+                    )
+                elif decision == "quit":
+                    console.print("[yellow]User aborted the diff process.[/yellow]")
+                    break
+            # Obsługa starego formatu dla kompatybilności wstecznej
+            elif interactive_result == "yes":
                 approvals[result.path] = True
-                console.print(f'[green]Change approved for {result.path}.[/green]')
+                console.print(f"[green]Change approved for {result.path}.[/green]")
             elif interactive_result == "no":
                 approvals[result.path] = False
-                console.print(f'[yellow]Changes to {result.path} rejected.[/yellow]')
+                console.print(f"[yellow]Changes to {result.path} rejected.[/yellow]")
             elif interactive_result == "skip":
                 approvals[result.path] = False
-                console.print(f'[yellow]Skipping changes to {result.path} for now.[/yellow]')
+                console.print(
+                    f"[yellow]Skipping changes to {result.path} for now.[/yellow]"
+                )
             elif interactive_result == "quit":
                 console.print("[yellow]User aborted the diff process.[/yellow]")
                 break
         except Exception as e:
-            console.print(f'[red]Error displaying interactive diff: {e}[/red]')
+            console.print(f"[red]Error displaying interactive diff: {e}[/red]")
             import traceback
-            console.print(f'[dim]{traceback.format_exc()}[/dim]')
 
-            # Fallback to standard prompt if interactive diff fails
-            console.print("[yellow]Falling back to standard prompt due to error...[/yellow]")
+            console.print(f"[dim]{traceback.format_exc()}[/dim]")
+            console.print(
+                "[yellow]Falling back to standard prompt due to error...[/yellow]"
+            )
             _show_standard_diff(result)
-
-            answer = Prompt.ask(f'Apply changes to {result.path}?', choices=['y', 'n', 's'], default='y')
-            if answer.lower() == 'y':
+            answer = Prompt.ask(
+                f"Apply changes to {result.path}?", choices=["y", "n", "s"], default="y"
+            )
+            if answer.lower() == "y":
                 approvals[result.path] = True
-                console.print(f'[green]Change approved for {result.path}.[/green]')
-            elif answer.lower() == 's':
+                console.print(f"[green]Change approved for {result.path}.[/green]")
+            elif answer.lower() == "s":
                 approvals[result.path] = False
-                console.print(f'[yellow]Skipping changes to {result.path} for now.[/yellow]')
+                console.print(
+                    f"[yellow]Skipping changes to {result.path} for now.[/yellow]"
+                )
             else:
                 approvals[result.path] = False
-                console.print(f'[yellow]Changes to {result.path} rejected.[/yellow]')
-
+                console.print(f"[yellow]Changes to {result.path} rejected.[/yellow]")
     return approvals
-
 
 
 def _show_standard_diff(result: PatchResult) -> None:
@@ -420,8 +469,8 @@ def main():
             from patchcommander.config_ui import run_config_ui
             run_config_ui()
         except ImportError as e:
-            console.print(f"[red]Error loading configuration UI: {e}[/red]")
-            console.print("[yellow]Falling back to simple configuration display.[/yellow]")
+            console.print(f'[red]Error loading configuration UI: {e}[/red]')
+            console.print('[yellow]Falling back to simple configuration display.[/yellow]')
             print_config()
         return 0
     if args.set:
@@ -466,7 +515,27 @@ def main():
         input_data = normalize_line_endings(input_data)
         pipeline = setup_pipeline()
         results = pipeline.run(input_data)
+
+        # DEBUG: Sprawdźmy co zawierają wyniki
+        for result in results:
+            console.print(f'[red]DEBUG - Przed show_diffs_and_confirm - Plik: {result.path}[/red]')
+            console.print(f'[red]DEBUG - approved: {getattr(result, "approved", False)}[/red]')
+            console.print(f'[red]DEBUG - original_content i current_content są identyczne: {result.original_content == result.current_content}[/red]')
+            if result.original_content != result.current_content:
+                # Pokaż pierwsze 100 znaków obu zawartości dla porównania
+                console.print(f'[red]DEBUG - Oryginał (100 znaków): {result.original_content[:100]}[/red]')
+                console.print(f'[red]DEBUG - Nowa wersja (100 znaków): {result.current_content[:100]}[/red]')
+
         approvals = show_diffs_and_confirm(results)
+
+        # DEBUG: Sprawdźmy wyniki zatwierdzeń
+        console.print(f'[red]DEBUG - Zatwierdzenia: {approvals}[/red]')
+        for result in results:
+            console.print(f'[red]DEBUG - Po show_diffs_and_confirm - Plik: {result.path}[/red]')
+            console.print(f'[red]DEBUG - approved: {getattr(result, "approved", False)}[/red]')
+            console.print(f'[red]DEBUG - original_content i current_content są identyczne: {result.original_content == result.current_content}[/red]')
+            console.print(f'[red]DEBUG - Zatwierdzenie z approvals: {approvals.get(result.path, False)}[/red]')
+
         modified_count = apply_changes(results, approvals)
         console.print(f'[bold green]Processing completed with {modified_count} file(s) affected.[/bold green]')
     except KeyboardInterrupt:
@@ -480,3 +549,4 @@ def main():
         print(f'Error: {str(e)}')
         return 1
     return 0
+

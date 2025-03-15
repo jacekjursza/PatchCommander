@@ -68,9 +68,6 @@ class ProcessorRegistry:
         return compatible_processors
 
     @classmethod
-
-
-    @classmethod
     def process_operation(cls, operation: PatchOperation, result: PatchResult) -> bool:
         """
         Processes the operation using the appropriate processor.
@@ -86,23 +83,21 @@ class ProcessorRegistry:
         """
         if not cls._initialized:
             cls._initialize()
-
         processors = cls.get_processors_for_operation(operation)
-
         if not processors:
             operation.add_error(f'No processor found for operation type {operation.name}')
             return False
-
-        # Log the selected processors
         processor_names = [processor.__class__.__name__ for processor in processors]
-        console.print(f'[blue]Selected processors for operation: {", ".join(processor_names)}[/blue]')
-
+        console.print(f"[blue]Selected processors for operation: {', '.join(processor_names)}[/blue]")
         original_content = result.current_content
         for processor in processors:
             console.print(f'Trying processor: {processor.__class__.__name__}')
+            console.print(f'[blue]REGISTRY DEBUG - Przed procesorem {processor.__class__.__name__} - result.approved: {getattr(result, "approved", False)}[/blue]')
             try:
                 result.current_content = original_content
                 processor.process(operation, result)
+                console.print(f'[blue]REGISTRY DEBUG - Po procesorze {processor.__class__.__name__} - result.approved: {getattr(result, "approved", False)}[/blue]')
+                console.print(f'[blue]REGISTRY DEBUG - original_content == result.current_content: {original_content == result.current_content}[/blue]')
                 if operation.file_extension == 'py' and result.current_content:
                     try:
                         compile(result.current_content, result.path, 'exec')
@@ -129,4 +124,3 @@ class ProcessorRegistry:
                 continue
         operation.add_error('All compatible processors failed')
         return False
-
