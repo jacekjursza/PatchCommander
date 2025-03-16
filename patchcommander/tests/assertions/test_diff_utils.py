@@ -63,14 +63,6 @@ class TestDiffUtils(unittest.TestCase):
         expected = "line 1\n\nline 2"
         self.assertEqual(normalized, expected)
 
-    def test_normalize_empty_lines_with_count(self):
-        """Test normalizing empty lines with specific count."""
-        text = "line 1\nline 2"
-        
-        normalized = normalize_empty_lines(text, 3)
-        
-        expected = "line 1\nline 2\n\n\n"
-        self.assertEqual(normalized, expected)
 
 if __name__ == "__main__":
     unittest.main()

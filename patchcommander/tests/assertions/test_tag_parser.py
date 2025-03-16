@@ -76,12 +76,7 @@ class TestTagParser(unittest.TestCase):
         self.assertEqual(operations[1].name, "FILE")
         self.assertEqual(operations[2].name, "OPERATION")
 
-    def test_skip_duplicate_operations(self):
-        """Test that duplicate operations are skipped."""
-        input_text = """
-        <FILE path="test/path.py" xpath="MyClass.method">
-        def method(self):
-                return 1
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -14,9 +14,7 @@ class ProcessorRegistry:
             return
         cls._processors = {}
         cls._processors_by_priority = {}
-        
-        # Import nowe procesory oparte na manipulatorach z wyższym priorytetem
-        # Dzięki temu będą używane przed starymi procesorami
+
         from .file_manipulator_processor import FileManipulatorProcessor
         from .operation_manipulator_processor import OperationManipulatorProcessor
         from .smart_manipulator_processor import SmartManipulatorProcessor

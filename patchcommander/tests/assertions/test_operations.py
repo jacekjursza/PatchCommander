@@ -7,22 +7,26 @@ import sys
 import tempfile
 from pathlib import Path
 
+from patchcommander.core.pipeline.processors import (
+    OperationManipulatorProcessor,
+    FileManipulatorProcessor,
+)
+
 # Add project root to path if needed
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from patchcommander.core.pipeline.models import PatchOperation, PatchResult
-from patchcommander.core.pipeline.processors.operation_processor import OperationProcessor
-from patchcommander.core.pipeline.processors.file_processor import FileProcessor
+
 
 class TestOperations(unittest.TestCase):
     """Test cases for operation processors."""
 
     def setUp(self):
         """Set up the test environment."""
-        self.operation_processor = OperationProcessor()
-        self.file_processor = FileProcessor()
+        self.operation_processor = OperationManipulatorProcessor()
+        self.file_processor = FileManipulatorProcessor()
         
         # Create a temporary file for testing
         self.temp_dir = tempfile.TemporaryDirectory()
