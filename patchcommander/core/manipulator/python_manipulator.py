@@ -215,167 +215,237 @@ class PythonCodeManipulator(BaseCodeManipulator):
         """Get the whitespace indentation from a line of code."""
         match = re.match(r'^(\s*)', line)
         return match.group(1) if match else ""
-    
-    def _format_python_code_block(self, code: str, base_indent: str) -> str:
-        """
-        Format a Python code block (function/method) with correct indentation.
-        This handles the Python-specific indentation rules.
-        """
-        lines = code.splitlines()
-        if not lines:
-            return ""
-        
-        # Extract decorators first
-        decorators = []
-        start_index = 0
-        for i, line in enumerate(lines):
-            if line.strip().startswith('@'):
-                decorators.append(line.strip())
-                start_index = i + 1
-            else:
-                break
-                
-        if start_index >= len(lines):
-            # Only decorators, no actual code
-            return '\n'.join([f"{base_indent}{dec}" for dec in decorators])
-        
-        # Find the definition line (def/class)
-        def_line = None
-        def_index = start_index
-        for i in range(start_index, len(lines)):
-            stripped = lines[i].strip()
-            if stripped.startswith('def ') or stripped.startswith('async def ') or stripped.startswith('class '):
-                def_line = stripped
-                def_index = i
-                break
-        
-        if def_line is None:
-            # No function/method/class definition found, use standard indentation
-            return self._format_code_with_indentation(code, base_indent)
-        
-        # Format decorators with base indentation
-        formatted_lines = [f"{base_indent}{dec}" for dec in decorators]
-        
-        # Format the definition line
-        formatted_lines.append(f"{base_indent}{def_line}")
-        
-        # Format the body with additional indentation
-        body_indent = base_indent + "    "  # Python standard: 4 spaces
-        
-        # Extract body and handle docstring
-        body_lines = lines[def_index + 1:]
-        if body_lines and body_lines[0].strip().startswith(('"""', "'''")):
-            # Handle multi-line docstring
-            docstring_delimiter = '"""' if body_lines[0].strip().startswith('"""') else "'''"
-            docstring_lines = []
-            docstring_end_index = 0
-            in_docstring = True
-            
-            # First line of docstring
-            docstring_lines.append(body_lines[0].strip())
-            
-            # Find end of docstring
-            for i in range(1, len(body_lines)):
-                docstring_end_index = i
-                docstring_lines.append(body_lines[i])
-                if docstring_delimiter in body_lines[i]:
-                    in_docstring = False
-                    break
-            
-            if not in_docstring:
-                # Format docstring with body indentation
-                for i, line in enumerate(docstring_lines):
-                    if i == 0:
-                        formatted_lines.append(f"{body_indent}{line}")
-                    else:
-                        stripped = line.strip()
-                        if stripped:
-                            formatted_lines.append(f"{body_indent}{stripped}")
-                        else:
-                            formatted_lines.append("")
-                
-                # Format remaining body with body indentation
-                for line in body_lines[docstring_end_index + 1:]:
-                    stripped = line.strip()
-                    if stripped:
-                        formatted_lines.append(f"{body_indent}{stripped}")
-                    else:
-                        formatted_lines.append("")
-            else:
-                # Unterminated docstring - treat as normal code
-                for line in body_lines:
-                    stripped = line.strip()
-                    if stripped:
-                        formatted_lines.append(f"{body_indent}{stripped}")
-                    else:
-                        formatted_lines.append("")
-        else:
-            # No docstring, format all body lines
-            for line in body_lines:
-                stripped = line.strip()
-                if stripped:
-                    formatted_lines.append(f"{body_indent}{stripped}")
-                else:
-                    formatted_lines.append("")
-        
-        return '\n'.join(formatted_lines)
-    
+
     def _format_property_lines(self, properties: str, indent: str) -> str:
         """Format class property lines with correct indentation."""
         lines = properties.splitlines()
         formatted_lines = []
-        
+
         for line in lines:
             if line.strip():
                 formatted_lines.append(f"{indent}{line.strip()}")
             else:
                 formatted_lines.append("")
-        
-        return '\n'.join(formatted_lines)
-    
-    def _format_code_with_indentation(self, code: str, base_indent: str) -> str:
-        """
-        Format general code with indentation (fallback method).
-        Used for code that isn't a Python function/method/class.
-        """
+
+        return "\n".join(formatted_lines)
+
+    def _format_python_code_block(self, code: str, base_indent: str) -> str:
         lines = code.splitlines()
         if not lines:
             return ""
-        
-        # Check if the code already has consistent indentation
-        # If so, we need to adjust all lines; if not, we respect the existing structure
-        has_indentation = False
-        min_indent = float('inf')
-        
+
+        # Handle decorators
+        decorators = []
+        start_index = 0
+        for i, line in enumerate(lines):
+            if line.strip().startswith("@"):
+                decorators.append(line.strip())
+                start_index = i + 1
+            else:
+                break
+
+        if start_index >= len(lines):
+            return "\n".join([f"{base_indent}{dec}" for dec in decorators])
+
+        # Find the function/method signature line
+        def_line = None
+        def_index = start_index
+        for i in range(start_index, len(lines)):
+            stripped = lines[i].strip()
+            if (
+                stripped.startswith("def ")
+                or stripped.startswith("async def ")
+                or stripped.startswith("class ")
+            ):
+                def_line = stripped
+                def_index = i
+                break
+
+        if def_line is None:
+            return self._format_code_with_indentation(code, base_indent)
+
+        # Format decorators and function/method signature
+        formatted_lines = [f"{base_indent}{dec}" for dec in decorators]
+        formatted_lines.append(f"{base_indent}{def_line}")
+
+        # Format the function body with proper indentation
+        body_indent = base_indent + "    "
+
+        # First, determine the indentation of the first body line to use as reference
+        original_first_body_indent = None
+        for i in range(def_index + 1, len(lines)):
+            if lines[i].strip():
+                original_first_body_indent = len(lines[i]) - len(lines[i].lstrip())
+                break
+
+        # If we found a non-empty body line, use it as reference for indentation
+        if original_first_body_indent is not None:
+            # Process docstrings first if present
+            if def_index + 1 < len(lines) and (
+                lines[def_index + 1].strip().startswith('"""')
+                or lines[def_index + 1].strip().startswith("'''")
+            ):
+                docstring_delimiter = (
+                    '"""' if lines[def_index + 1].strip().startswith('"""') else "'''"
+                )
+                docstring_lines = []
+                docstring_end_index = 0
+                in_docstring = True
+                docstring_lines.append(lines[def_index + 1].strip())
+
+                for i in range(def_index + 2, len(lines)):
+                    docstring_end_index = i
+                    docstring_lines.append(lines[i])
+                    if docstring_delimiter in lines[i]:
+                        in_docstring = False
+                        break
+
+                if not in_docstring:
+                    for i, line in enumerate(docstring_lines):
+                        if i == 0:
+                            formatted_lines.append(f"{body_indent}{line}")
+                        else:
+                            line_content = line.strip()
+                            if line_content:
+                                formatted_lines.append(f"{body_indent}{line_content}")
+                            else:
+                                formatted_lines.append("")
+
+                    # Process remaining body lines after docstring
+                    remaining_lines = lines[docstring_end_index + 1 :]
+
+                    # Find the indentation pattern in the code
+                    if remaining_lines:
+                        self._format_body_lines(
+                            remaining_lines,
+                            formatted_lines,
+                            original_first_body_indent,
+                            body_indent,
+                        )
+                else:
+                    # If docstring wasn't properly closed, handle entire body
+                    self._format_body_lines(lines[def_index + 1:], formatted_lines, original_first_body_indent, body_indent)
+            else:
+                # No docstring, process all body lines
+                self._format_body_lines(lines[def_index + 1:], formatted_lines, original_first_body_indent, body_indent)
+
+        return '\n'.join(formatted_lines)
+
+    def _format_body_lines(
+        self, body_lines, formatted_lines, original_indent, base_indent
+    ):
+        """Helper method to format body lines with proper indentation structure."""
+        if not body_lines:
+            return
+
+        # Find the minimum indentation in non-empty lines to use as reference
+        min_indent = float("inf")
+        for line in body_lines:
+            if line.strip():
+                line_indent = len(line) - len(line.lstrip())
+                min_indent = min(min_indent, line_indent)
+
+        if min_indent == float("inf"):
+            min_indent = original_indent
+
+        # Now format each line preserving relative indentation
+        for line in body_lines:
+            if not line.strip():
+                formatted_lines.append("")
+                continue
+
+            line_indent = len(line) - len(line.lstrip())
+            if line_indent >= min_indent:
+                # Calculate relative indentation difference
+                relative_indent = line_indent - min_indent
+                formatted_lines.append(f"{base_indent}{' ' * relative_indent}{line.lstrip()}")
+            else:
+                # Fallback if line has less indentation than min (shouldn't happen in valid Python)
+                formatted_lines.append(f'{base_indent}{line.lstrip()}')
+
+
+    def _format_code_with_indentation(self, code: str, base_indent: str) -> str:
+        """Format generic code block with proper indentation."""
+        lines = code.splitlines()
+        if not lines:
+            return ""
+
+        # Check if this is a class definition
+        is_class_def = False
+        class_body_indent = base_indent + "    "
+        if lines and lines[0].strip().startswith("class "):
+            is_class_def = True
+
+        # Find the minimum indentation in non-empty lines to use as reference
+        min_indent = float("inf")
         for line in lines:
-            if line.strip():  # Non-empty line
-                spaces = len(line) - len(line.lstrip())
-                if spaces > 0:
-                    has_indentation = True
-                    min_indent = min(min_indent, spaces)
-        
-        if not has_indentation or min_indent == float('inf'):
-            # No indentation in original code, add base_indent to all non-empty lines
+            if line.strip():
+                line_indent = len(line) - len(line.lstrip())
+                if line_indent > 0:  # Only consider indented lines
+                    min_indent = min(min_indent, line_indent)
+
+        if min_indent == float("inf"):
+            # No indentation detected, format using simple rules
             formatted_lines = []
-            for line in lines:
-                if line.strip():
-                    formatted_lines.append(f"{base_indent}{line.strip()}")
-                else:
+            for i, line in enumerate(lines):
+                line_content = line.strip()
+                if not line_content:
                     formatted_lines.append("")
-            return '\n'.join(formatted_lines)
+                    continue
+
+                # Special handling for first line (class/def declaration)
+                if i == 0:
+                    formatted_lines.append(f"{base_indent}{line_content}")
+                # Special handling for class methods - they need extra indentation
+                elif is_class_def and line_content.startswith("def "):
+                    formatted_lines.append(f"{class_body_indent}{line_content}")
+                # Handle other class content
+                elif is_class_def:
+                    formatted_lines.append(f"{class_body_indent}{line_content}")
+                # Regular lines
+                else:
+                    formatted_lines.append(f"{base_indent}{line_content}")
         else:
-            # Code has indentation, adjust by the difference
+            # Indentation detected, preserve the structure
             formatted_lines = []
-            for line in lines:
-                if line.strip():
-                    current_indent = len(line) - len(line.lstrip())
-                    if current_indent >= min_indent:
-                        # Adjust indentation level
-                        relative_indent = current_indent - min_indent
-                        formatted_lines.append(f"{base_indent}{' ' * relative_indent}{line.lstrip()}")
-                    else:
-                        # Unexpected indentation, use base indent
-                        formatted_lines.append(f"{base_indent}{line.lstrip()}")
-                else:
+            for i, line in enumerate(lines):
+                line_content = line.strip()
+                if not line_content:
                     formatted_lines.append("")
-            return '\n'.join(formatted_lines)
+                    continue
+
+                # Special handling for first line (often a class/def declaration)
+                if i == 0:
+                    formatted_lines.append(f"{base_indent}{line_content}")
+                    continue
+
+                # Calculate relative indentation
+                line_indent = len(line) - len(line.lstrip())
+
+                # For class definitions, ensure methods have proper indentation
+                if is_class_def and line_content.startswith("def "):
+                    if line_indent <= min_indent:  # If it's directly under the class
+                        formatted_lines.append(f"{class_body_indent}{line_content}")
+                        continue
+
+                # For standard indented lines
+                if line_indent >= min_indent:
+                    relative_indent = line_indent - min_indent
+
+                    # Class content needs one level of base indentation
+                    if is_class_def:
+                        formatted_lines.append(
+                            f"{class_body_indent}{' ' * relative_indent}{line.lstrip()}"
+                        )
+                    else:
+                        formatted_lines.append(
+                            f"{base_indent}{' ' * relative_indent}{line.lstrip()}"
+                        )
+                else:
+                    # Fallback for lines with less indentation than our reference
+                    if is_class_def:
+                        formatted_lines.append(f'{class_body_indent}{line_content}')
+                    else:
+                        formatted_lines.append(f'{base_indent}{line_content}')
+
+        return '\n'.join(formatted_lines)

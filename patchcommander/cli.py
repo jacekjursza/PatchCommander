@@ -326,7 +326,6 @@ def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
                 errors=result.errors,
             )
 
-            # Obsługa nowego formatu zwracanego przez show_interactive_diff (decision, content)
             if isinstance(interactive_result, tuple) and len(interactive_result) == 2:
                 decision, updated_content = interactive_result
                 console.print(
@@ -334,7 +333,6 @@ def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
                 )
 
                 if decision == "yes":
-                    # Aktualizuj zawartość z wybraną metodą mergowania
                     result.current_content = updated_content
                     approvals[result.path] = True
                     console.print(f"[green]Change approved for {result.path}.[/green]")
@@ -351,7 +349,7 @@ def show_diffs_and_confirm(results: List[PatchResult]) -> Dict[str, bool]:
                 elif decision == "quit":
                     console.print("[yellow]User aborted the diff process.[/yellow]")
                     break
-            # Obsługa starego formatu dla kompatybilności wstecznej
+
             elif interactive_result == "yes":
                 approvals[result.path] = True
                 console.print(f"[green]Change approved for {result.path}.[/green]")
@@ -516,28 +514,10 @@ def main():
         pipeline = setup_pipeline()
         results = pipeline.run(input_data)
 
-        # DEBUG: Sprawdźmy co zawierają wyniki
-        for result in results:
-            console.print(f'[red]DEBUG - Przed show_diffs_and_confirm - Plik: {result.path}[/red]')
-            console.print(f'[red]DEBUG - approved: {getattr(result, "approved", False)}[/red]')
-            console.print(f'[red]DEBUG - original_content i current_content są identyczne: {result.original_content == result.current_content}[/red]')
-            if result.original_content != result.current_content:
-                # Pokaż pierwsze 100 znaków obu zawartości dla porównania
-                console.print(f'[red]DEBUG - Oryginał (100 znaków): {result.original_content[:100]}[/red]')
-                console.print(f'[red]DEBUG - Nowa wersja (100 znaków): {result.current_content[:100]}[/red]')
-
         approvals = show_diffs_and_confirm(results)
 
-        # DEBUG: Sprawdźmy wyniki zatwierdzeń
-        console.print(f'[red]DEBUG - Zatwierdzenia: {approvals}[/red]')
-        for result in results:
-            console.print(f'[red]DEBUG - Po show_diffs_and_confirm - Plik: {result.path}[/red]')
-            console.print(f'[red]DEBUG - approved: {getattr(result, "approved", False)}[/red]')
-            console.print(f'[red]DEBUG - original_content i current_content są identyczne: {result.original_content == result.current_content}[/red]')
-            console.print(f'[red]DEBUG - Zatwierdzenie z approvals: {approvals.get(result.path, False)}[/red]')
-
         modified_count = apply_changes(results, approvals)
-        console.print(f'[bold green]Processing completed with {modified_count} file(s) affected.[/bold green]')
+        console.print(f'[bold green]Processing completed with {len(results)} changes/ {modified_count} file(s) affected.[/bold green]')
     except KeyboardInterrupt:
         console.print('\n[yellow]Operation cancelled by user.[/yellow]')
         return 130

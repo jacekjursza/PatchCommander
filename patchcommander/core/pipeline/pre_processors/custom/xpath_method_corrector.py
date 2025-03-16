@@ -1,245 +1,111 @@
-"""
-Pre-processor that corrects XPaths for methods incorrectly formatted as functions.
-
-This pre-processor identifies when an LLM has incorrectly formatted a class method
-as a standalone function in the xpath (using "method_name" instead of "ClassName.method_name").
-It detects this by looking for the 'self' parameter in the function definition and
-then searches the target file to find which class the method belongs to.
-"""
 import re
 import os
 from rich.console import Console
 from ...processor_base import PreProcessor
 from ...models import PatchOperation
-from patchcommander.parsers.python_parser import PythonParser
+from patchcommander.core.finder.factory import get_code_finder
 
 console = Console()
 
 class XPathMethodCorrector(PreProcessor):
-    """
-    Pre-processor that corrects XPaths for methods incorrectly formatted as functions.
-    
-    When LLMs generate an xpath for a class method but omit the class name part
-    (using "method_name" instead of "ClassName.method_name"), this pre-processor
-    detects it by looking for 'self' parameter and corrects the xpath.
-    """
 
     def can_handle(self, operation: PatchOperation) -> bool:
-        """
-        Checks if the pre-processor can handle the operation.
-
-        Args:
-            operation: Operation to check
-
-        Returns:
-            bool: True if it's a Python function operation without a dot in the xpath
-        """
-        return (
-            operation.name == "FILE"
-            and operation.file_extension == "py"
-            and operation.xpath is not None
-            and "." not in operation.xpath
-            and operation.attributes.get("target_type") == "function"
-        )
+        return operation.name == 'FILE' and operation.file_extension == 'py' and (operation.xpath is not None) and ('.' not in operation.xpath) and (operation.attributes.get('target_type') == 'function')
 
     def process(self, operation: PatchOperation) -> None:
-        """
-        Corrects the xpath if the function is actually a class method.
-
-        Args:
-            operation: Operation to process
-        """
         if not operation.content:
             return
-
-        # Sprawdź, czy to metoda klasy na podstawie parametru 'self'
-        func_def_match = re.search(
-            "^\\s*(?:async\\s+)?def\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\\s*self\\b",
-            operation.content,
-            re.MULTILINE,
-        )
+        func_def_match = re.search('^\\s*(?:async\\s+)?def\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\\s*self\\b', operation.content, re.MULTILINE)
         if not func_def_match:
-            # Sprawdź, czy to setter dla property
-            setter_match = re.search(
-                "^\\s*@(\\w+)\\.setter\\s*\\n+\\s*def\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\\s*self\\b",
-                operation.content,
-                re.MULTILINE,
-            )
+            setter_match = re.search('^\\s*@(\\w+)\\.setter\\s*\\n+\\s*def\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\\s*self\\b', operation.content, re.MULTILINE)
             if not setter_match:
                 return
             else:
-                # Znaleziono property setter
                 property_name = setter_match.group(1)
                 method_name = setter_match.group(2)
                 if property_name != method_name:
-                    console.print(
-                        f"[yellow]Warning: Property setter name '{method_name}' doesn't match property name '{property_name}'[/yellow]"
-                    )
+                    console.print(f"[yellow]Warning: Property setter name '{method_name}' doesn't match property name '{property_name}'[/yellow]")
                 method_name = setter_match.group(2)
         else:
             method_name = func_def_match.group(1)
-
         function_name = operation.xpath
-
         if method_name != function_name:
-            console.print(
-                f"[yellow]Warning: Method name '{method_name}' doesn't match xpath '{function_name}'[/yellow]"
-            )
+            console.print(f"[yellow]Warning: Method name '{method_name}' doesn't match xpath '{function_name}'[/yellow]")
             return
-
-        console.print(
-            f"[blue]Found potential class method '{method_name}' with 'self' parameter but xpath doesn't include class name[/blue]"
-        )
-
-        # Sprawdź, czy plik istnieje
+        console.print(f"[blue]Found potential class method '{method_name}' with 'self' parameter but xpath doesn't include class name[/blue]")
         if not os.path.exists(operation.path):
-            console.print(
-                f"[yellow]File '{operation.path}' doesn't exist, can't determine class name[/yellow]"
-            )
+            console.print(f"[yellow]File '{operation.path}' doesn't exist, can't determine class name[/yellow]")
             return
-
         try:
-            # Odczytaj zawartość pliku
-            with open(operation.path, "r", encoding="utf-8") as f:
+            with open(operation.path, 'r', encoding='utf-8') as f:
                 file_content = f.read()
-
-            # Spróbuj znaleźć klasę za pomocą tree-sitter
             class_name = self._find_class_with_tree_sitter(file_content, method_name)
-
-            # Jeśli nie znaleziono, spróbuj za pomocą regexu
             if not class_name:
                 class_name = self._find_class_with_regex(file_content, method_name)
-
-            # Jeśli znaleziono klasę, zaktualizuj xpath
             if class_name:
-                console.print(
-                    f"[green]Found method '{method_name}' in class '{class_name}'[/green]"
-                )
-                operation.xpath = f"{class_name}.{method_name}"
-                operation.attributes["target_type"] = "method"
-                operation.attributes["class_name"] = class_name
-                operation.attributes["method_name"] = method_name
+                console.print(f"[green]Found method '{method_name}' in class '{class_name}'[/green]")
+                operation.xpath = f'{class_name}.{method_name}'
+                operation.attributes['target_type'] = 'method'
+                operation.attributes['class_name'] = class_name
+                operation.attributes['method_name'] = method_name
                 operation.processors = []
-                console.print(
-                    f"[green]Updated xpath to '{operation.xpath}' and cleared processor history[/green]"
-                )
+                console.print(f"[green]Updated xpath to '{operation.xpath}' and cleared processor history[/green]")
                 return
             else:
-                console.print(
-                    f"[yellow]Could not find a class containing method '{method_name}'[/yellow]"
-                )
+                console.print(f"[yellow]Could not find a class containing method '{method_name}'[/yellow]")
         except Exception as e:
-            console.print(
-                f"[red]Error while trying to determine class name: {str(e)}[/red]"
-            )
+            console.print(f'[red]Error while trying to determine class name: {str(e)}[/red]')
             import traceback
+            console.print(f'[dim]{traceback.format_exc()}[/dim]')
 
-            console.print(f"[dim]{traceback.format_exc()}[/dim]")
-    
     def _find_class_with_tree_sitter(self, file_content: str, method_name: str) -> str:
-        """
-        Find a class containing the method using tree-sitter parser.
-        
-        Args:
-            file_content: Content of the file
-            method_name: Name of the method to find
-            
-        Returns:
-            str: Name of the class containing the method, or empty string if not found
-        """
         try:
-            # Use PythonParser to find classes and their methods
-            parser = PythonParser()
-            tree = parser.parse(file_content)
-            classes = tree.find_classes()
-            
-            console.print(f"[blue]Found {len(classes)} classes in the file[/blue]")
-            
-            for cls in classes:
-                class_name = None
-                for child in cls.get_children():
-                    if child.get_type() == 'identifier':
-                        class_name = child.get_text()
-                        break
-                        
-                if not class_name:
-                    console.print("[yellow]Found a class without a name[/yellow]")
-                    continue
-                    
+            finder = get_code_finder('python')
+            # Look for all classes in the code
+            for class_match in re.finditer(r'class\s+(\w+)', file_content):
+                class_name = class_match.group(1)
                 console.print(f"[blue]Checking class '{class_name}'[/blue]")
                 
-                # Check if this class contains the method by manually examining the content
-                class_content = cls.get_text()
-                method_pattern = r'(?:^|\n)\s*(?:@\w+(?:\(.*?\))?\s*)*\s*def\s+' + re.escape(method_name) + r'\s*\(\s*self\b'
-                method_match = re.search(method_pattern, class_content, re.MULTILINE)
-                
-                if method_match:
-                    console.print(f"[green]Found method '{method_name}' in class '{class_name}' using content search[/green]")
+                # Try to find the method in the class using the finder
+                start_line, end_line = finder.find_method(file_content, class_name, method_name)
+                if start_line > 0 and end_line > 0:
+                    console.print(f"[green]Found method '{method_name}' in class '{class_name}' using finder[/green]")
                     return class_name
                     
-                # Also try tree-sitter's find_methods
-                methods = tree.find_methods(cls)
-                console.print(f"[blue]Found {len(methods)} methods in class '{class_name}'[/blue]")
-                
-                for method in methods:
-                    # Dump method content for debugging
-                    method_content = method.get_text()
-                    console.print(f"[blue]Checking method: {method_content[:50]}...[/blue]")
-                    
-                    method_identifier = None
-                    for child in method.get_children():
-                        if child.get_type() == 'identifier':
-                            method_identifier = child.get_text()
-                            console.print(f"[blue]Found method identifier: {method_identifier}[/blue]")
-                            break
-                            
-                    if method_identifier == method_name:
+                # Fallback to regex search
+                class_start, class_end = finder.find_class(file_content, class_name)
+                if class_start > 0 and class_end > 0:
+                    lines = file_content.splitlines()
+                    class_content = '\n'.join(lines[class_start-1:class_end])
+                    method_pattern = r'(?:^|\n)\s*(?:@\w+(?:\(.*?\))?\s*)*\s*def\s+' + re.escape(method_name) + r'\s*\(\s*self\b'
+                    if re.search(method_pattern, class_content, re.MULTILINE):
+                        console.print(f"[green]Found method '{method_name}' in class '{class_name}' using content search[/green]")
                         return class_name
                         
-            # If we get here, we didn't find the method in any class
-            return ""
+            return ''
         except Exception as e:
-            console.print(f"Error in tree-sitter approach: {str(e)}")
+            console.print(f'Error in tree-sitter approach: {str(e)}')
             import traceback
-            console.print(f"[dim]{traceback.format_exc()}[/dim]")
-            return ""
-    
+            console.print(f'[dim]{traceback.format_exc()}[/dim]')
+            return ''
+
     def _find_class_with_regex(self, file_content: str, method_name: str) -> str:
-        """
-        Find a class containing the method using regex approach.
-        
-        Args:
-            file_content: Content of the file
-            method_name: Name of the method to find
-            
-        Returns:
-            str: Name of the class containing the method, or empty string if not found
-        """
         try:
-            # Find all class definitions
-            class_pattern = r'(?:^|\n)\s*class\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:\([^)]*\))?:'
+            class_pattern = '(?:^|\\n)\\s*class\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?:\\([^)]*\\))?:'
             class_matches = list(re.finditer(class_pattern, file_content, re.MULTILINE))
-            
-            console.print(f"[blue]Found {len(class_matches)} classes using regex[/blue]")
-            
-            for i, class_match in enumerate(class_matches):
+            console.print(f'[blue]Found {len(class_matches)} classes using regex[/blue]')
+            for (i, class_match) in enumerate(class_matches):
                 class_name = class_match.group(1)
                 class_start = class_match.start()
-                
-                # Find the end of this class (start of next class or end of file)
                 class_end = len(file_content)
                 if i < len(class_matches) - 1:
-                    class_end = class_matches[i+1].start()
-                    
+                    class_end = class_matches[i + 1].start()
                 class_content = file_content[class_start:class_end]
-                
-                # Look for method in this class content
-                method_pattern = r'(?:^|\n)\s*(?:@\w+(?:\(.*?\))?\s*)*\s*def\s+' + re.escape(method_name) + r'\s*\(\s*self\b'
+                method_pattern = '(?:^|\\n)\\s*(?:@\\w+(?:\\(.*?\\))?\\s*)*\\s*def\\s+' + re.escape(method_name) + '\\s*\\(\\s*self\\b'
                 if re.search(method_pattern, class_content, re.MULTILINE):
                     console.print(f"[green]Found method '{method_name}' in class '{class_name}' using regex[/green]")
                     return class_name
-                    
-            return ""
+            return ''
         except Exception as e:
-            console.print(f"Error in regex approach: {str(e)}")
-            return ""
+            console.print(f'Error in regex approach: {str(e)}')
+            return ''
