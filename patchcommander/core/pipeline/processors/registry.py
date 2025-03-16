@@ -1,45 +1,45 @@
 from typing import Dict, List, Type
 from rich.console import Console
 from .. import Processor, PatchOperation, PatchResult
-
 console = Console()
 
-
 class ProcessorRegistry:
-    """
-    Registry for processors to handle various types of operations.
-    """
     _processors: Dict[str, List] = {}
     _processors_by_priority: Dict[int, List] = {}
     _initialized: bool = False
 
     @classmethod
     def _initialize(cls):
-        """
-        Initializes the processor registry if it has not been initialized yet.
-        """
         if cls._initialized:
             return
         cls._processors = {}
         cls._processors_by_priority = {}
-        from .file_processor import FileProcessor
-        from .operation_processor import OperationProcessor
-        from .python.smart_class_processor import SmartClassProcessor
-        from .python.class_processor import PythonClassProcessor
-        from .python.method_diff_match_patch import DiffMatchPatchPythonMethodProcessor
-        from .python.function_diff_match_patch import DiffMatchPatchPythonFunctionProcessor
-
+        
+        # Import nowe procesory oparte na manipulatorach z wyższym priorytetem
+        # Dzięki temu będą używane przed starymi procesorami
+        from .file_manipulator_processor import FileManipulatorProcessor
+        from .operation_manipulator_processor import OperationManipulatorProcessor
+        from .smart_manipulator_processor import SmartManipulatorProcessor
+        
+        # Stare procesory jako fallback (niższy priorytet)
+        # W przyszłości można je będzie usunąć gdy nowe procesory będą w pełni przetestowane
+        try:
+            from .file_processor import FileProcessor
+            from .operation_processor import OperationProcessor
+            try:
+                from .python.smart_class_processor import SmartClassProcessor
+                from .python.class_processor import PythonClassProcessor
+                from .python.method_diff_match_patch import DiffMatchPatchPythonMethodProcessor
+                from .python.function_diff_match_patch import DiffMatchPatchPythonFunctionProcessor
+            except ImportError:
+                console.print("[yellow]Some old Python processors couldn't be imported, but that's OK - using new processors[/yellow]")
+        except ImportError:
+            console.print("[yellow]Some old processors couldn't be imported, but that's OK - using new processors[/yellow]")
+        
         cls._initialized = True
 
     @classmethod
-    def register_processor(cls, processor_class: Type[Processor], priority: int = 100) -> None:
-        """
-        Registers a processor with a specified priority.
-
-        Args:
-            processor_class: The processor class.
-            priority: The processor's priority (lower = higher priority).
-        """
+    def register_processor(cls, processor_class: Type[Processor], priority: int=100) -> None:
         processor = processor_class()
         if priority not in cls._processors_by_priority:
             cls._processors_by_priority[priority] = []
@@ -49,15 +49,6 @@ class ProcessorRegistry:
 
     @classmethod
     def get_processors_for_operation(cls, operation: PatchOperation) -> List[Processor]:
-        """
-        Returns processors that can handle the given operation, sorted by priority.
-
-        Args:
-            operation: The operation to handle.
-
-        Returns:
-            A list of processors that can handle the operation.
-        """
         if not cls._initialized:
             cls._initialize()
         compatible_processors = []
@@ -69,18 +60,6 @@ class ProcessorRegistry:
 
     @classmethod
     def process_operation(cls, operation: PatchOperation, result: PatchResult) -> bool:
-        """
-        Processes the operation using the appropriate processor.
-        If a processor fails or generates code with syntax errors,
-        it tries the next processors in order of priority.
-
-        Args:
-            operation: The operation to process.
-            result: The result to update.
-
-        Returns:
-            bool: True if the operation was processed successfully, False otherwise.
-        """
         if not cls._initialized:
             cls._initialize()
         processors = cls.get_processors_for_operation(operation)
@@ -92,12 +71,11 @@ class ProcessorRegistry:
         original_content = result.current_content
         for processor in processors:
             console.print(f'Trying processor: {processor.__class__.__name__}')
-            console.print(f'[blue]REGISTRY DEBUG - Przed procesorem {processor.__class__.__name__} - result.approved: {getattr(result, "approved", False)}[/blue]')
             try:
                 result.current_content = original_content
                 processor.process(operation, result)
-                console.print(f'[blue]REGISTRY DEBUG - Po procesorze {processor.__class__.__name__} - result.approved: {getattr(result, "approved", False)}[/blue]')
-                console.print(f'[blue]REGISTRY DEBUG - original_content == result.current_content: {original_content == result.current_content}[/blue]')
+                
+                # Validate syntax for Python files
                 if operation.file_extension == 'py' and result.current_content:
                     try:
                         compile(result.current_content, result.path, 'exec')
