@@ -1,4 +1,4 @@
-VERSION = '1.2'
+VERSION = '1.2.1'
 APP_NAME = 'PatchCommander'
 
 def _get_version():

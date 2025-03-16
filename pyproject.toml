@@ -1,6 +1,6 @@
 [project]
 name = "patchcommander"
-version = "1.2"
+version = "1.2.1"
 description = "AI-assisted coding automation tool for streamlined LLM code integration"
 readme = "README.md"
 authors = [
@@ -22,8 +22,9 @@ dependencies = [
     "tree-sitter>=0.20.0",
     "tree-sitter-python>=0.20.0",
     "tree-sitter-javascript>=0.20.0",
+    "tree-sitter-typescript==0.23.2",
     "diff-match-patch>=20200713",
-    "textual>=0.14.0",  # Required for interactive diff viewer and config UI
+    "textual>=0.14.0",
 ]
 requires-python = ">=3.8"
 
@@ -34,10 +35,6 @@ requires-python = ">=3.8"
 [project.scripts]
 pcmd = "patchcommander.cli:main"
 patchcommander = "patchcommander.cli:main"
-
-[tool.setuptools]
-packages = ["find_packages"]
-find_packages.include = ["patchcommander*"]
 
 [tool.setuptools.package-data]
 patchcommander = ["FOR_LLM.md"]
