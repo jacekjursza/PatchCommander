@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='patchcommander',
-    version='1.1.7',
+    version='1.2',
     description='AI-assisted coding automation tool',
     author='PatchCommander Team',
     packages=find_packages(),
@@ -16,7 +16,7 @@ setup(
         'tree-sitter-python>=0.20.0',
         'tree-sitter-javascript>=0.20.0',
         'diff-match-patch>=20200713',
-        'textual>=0.14.0',  # Required for interactive diff viewer and config UI
+        'textual>=0.14.0',
     ],
     entry_points={
         'console_scripts': [

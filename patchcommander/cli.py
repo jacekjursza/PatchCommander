@@ -6,7 +6,7 @@ import argparse
 import difflib
 import os
 import sys
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 import pyperclip
 import rich
@@ -422,40 +422,35 @@ def _show_standard_diff(result: PatchResult) -> None:
         console.print(panel)
 
 
-def apply_changes(results: List[PatchResult], approvals: Dict[str, bool]) -> int:
-    """
-    Applies approved changes to files.
-
-    Args:
-        results: List of operation results
-        approvals: Dictionary with approval decisions
-
-    Returns:
-        int: Number of modified files
-    """
+def apply_changes(results: List[PatchResult], approvals: Dict[str, bool]) -> Tuple[int, int]:
     modified_count = 0
+    operation_count = 0
     for result in results:
         if approvals.get(result.path, False):
             try:
-                directory = os.path.dirname(result.path)
-                if directory:
-                    os.makedirs(directory, exist_ok=True)
-                with open(result.path, 'w', encoding='utf-8') as f:
-                    f.write(result.current_content)
-                console.print(f'[green]Applied changes to {result.path}[/green]')
-                modified_count += 1
+                if hasattr(result, 'attributes') and result.attributes.get('should_delete', False):
+                    if os.path.exists(result.path):
+                        os.remove(result.path)
+                        console.print(f'[green]Deleted file: {result.path}[/green]')
+                        modified_count += 1
+                        operation_count += len(result.operations)
+                    else:
+                        console.print(f'[yellow]File does not exist: {result.path}[/yellow]')
+                else:
+                    directory = os.path.dirname(result.path)
+                    if directory:
+                        os.makedirs(directory, exist_ok=True)
+                    with open(result.path, 'w', encoding='utf-8') as f:
+                        f.write(result.current_content)
+                    console.print(f'[green]Applied changes to {result.path}[/green]')
+                    modified_count += 1
+                    operation_count += len(result.operations)
             except Exception as e:
-                console.print(f'[red]Error applying changes to {result.path}: {e}[/red]')
-    return modified_count
+                console.print(f'[bold red]Error applying changes to {result.path}: {e}[/bold red]')
+    return (modified_count, operation_count)
 
 
 def main():
-    """
-    Main function of the program.
-
-    Returns:
-        int: Exit code
-    """
     parser = setup_argument_parser()
     args = parser.parse_args()
     if args.version:
@@ -513,11 +508,10 @@ def main():
         input_data = normalize_line_endings(input_data)
         pipeline = setup_pipeline()
         results = pipeline.run(input_data)
-
         approvals = show_diffs_and_confirm(results)
-
-        modified_count = apply_changes(results, approvals)
-        console.print(f'[bold green]Processing completed with {len(results)} changes/ {modified_count} file(s) affected.[/bold green]')
+        modified_result = apply_changes(results, approvals)
+        modified_count, operation_count = modified_result
+        console.print(f'[bold green]Processing completed with {len(results)} changes/ {modified_count} file(s) affected/ {operation_count} operation(s) applied.[/bold green]')
     except KeyboardInterrupt:
         console.print('\n[yellow]Operation cancelled by user.[/yellow]')
         return 130

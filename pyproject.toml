@@ -1,6 +1,6 @@
 [project]
 name = "patchcommander"
-version = "1.1.7"
+version = "1.2"
 description = "AI-assisted coding automation tool for streamlined LLM code integration"
 readme = "README.md"
 authors = [
@@ -36,16 +36,8 @@ pcmd = "patchcommander.cli:main"
 patchcommander = "patchcommander.cli:main"
 
 [tool.setuptools]
-packages = [
-    "patchcommander",
-    "patchcommander.core",
-    "patchcommander.parsers",
-    "patchcommander.core.pipeline",
-    "patchcommander.core.pipeline.processors",
-    "patchcommander.core.pipeline.pre_processors",
-    "patchcommander.core.pipeline.post_processors",
-    "patchcommander.core.utils",
-]
+packages = ["find_packages"]
+find_packages.include = ["patchcommander*"]
 
 [tool.setuptools.package-data]
 patchcommander = ["FOR_LLM.md"]

@@ -9,63 +9,90 @@ from patchcommander.core.pipeline.models import PatchOperation
 console = Console()
 
 def analyze_xpath(operation: PatchOperation) -> bool:
-    """
-    Analyzes and validates XPath in the operation.
-    Sets appropriate attributes on the operation.
-
-    Args:
-        operation: Operation to analyze
-
-    Returns:
-        bool: True if analysis was successful, False otherwise
-    """
     if not operation.xpath:
         return False
-
     console.print(f"[blue]Analyzing xpath: '{operation.xpath}'[/blue]")
-    console.print(f"[blue]Content starts with: '{operation.content[:40].strip()}...'[/blue]")
 
-    # Check for class.method pattern
-    class_method_match = re.match(r'^([A-Za-z_][A-Za-z0-9_]*?)\.([A-Za-z_][A-Za-z0-9_]*?)$', operation.xpath)
+    # Lines range matcher (e.g. "lines:10:20")
+    lines_match = re.match('^lines:(\\d+):(\\d+)$', operation.xpath)
+    if lines_match:
+        start_line = int(lines_match.group(1))
+        end_line = int(lines_match.group(2))
+        operation.attributes['target_type'] = 'lines'
+        operation.attributes['start_line'] = start_line
+        operation.attributes['end_line'] = end_line
+        console.print(f'[green]Recognized lines range: {start_line} to {end_line}[/green]')
+        return True
+
+    # Class method matcher (e.g. "ClassName.method_name")
+    class_method_match = re.match('^([A-Za-z_][A-Za-z0-9_]*?)\\.([A-Za-z_][A-Za-z0-9_]*?)$', operation.xpath)
     if class_method_match:
-        class_name, method_name = class_method_match.groups()
+        (class_name, method_name) = class_method_match.groups()
         operation.attributes['target_type'] = 'method'
         operation.attributes['class_name'] = class_name
         operation.attributes['method_name'] = method_name
         console.print(f'[green]Recognized class method: {class_name}.{method_name}[/green]')
         return True
 
-    # Check for function pattern by matching with content
-    func_def_match = re.search(r'^\s*(async\s+)?def\s+([A-Za-z_][A-Za-z0-9_]*)', 
-                               operation.content, re.MULTILINE)
-    function_match = re.match(r'^([A-Za-z_][A-Za-z0-9_]*?)$', operation.xpath)
-    
-    if function_match and func_def_match:
-        function_name = function_match.group(1)
-        if func_def_match.group(2) == function_name:
-            operation.attributes['target_type'] = 'function'
-            operation.attributes['function_name'] = function_name
-            console.print(f'[green]Recognized function: {function_name}[/green]')
-            return True
+    # Simple name matcher (could be class or function)
+    simple_name_match = re.match('^([A-Za-z_][A-Za-z0-9_]*?)$', operation.xpath)
+    if simple_name_match:
+        name = simple_name_match.group(1)
 
-    # Check for class pattern
-    class_match = re.match(r'^([A-Za-z_][A-Za-z0-9_]*?)$', operation.xpath)
-    if class_match:
-        class_name = class_match.group(1)
-        if re.search(r'^\s*class\s+' + re.escape(class_name), operation.content, re.MULTILINE):
+        # First check if it's a class
+        class_def_match = re.search('^\\s*class\\s+' + re.escape(name) + '\\s*[:(]', operation.content, re.MULTILINE)
+        if class_def_match:
             operation.attributes['target_type'] = 'class'
-            operation.attributes['class_name'] = class_name
-            console.print(f'[green]Recognized class: {class_name}[/green]')
-            return True
-        elif func_def_match:  # If it's a function definition without a class.method pattern
-            operation.attributes['target_type'] = 'function'
-            operation.attributes['function_name'] = class_name
-            console.print(f'[green]Recognized function: {class_name}[/green]')
+            operation.attributes['class_name'] = name
+            console.print(f'[green]Recognized class: {name}[/green]')
             return True
 
-    # If we got here, we couldn't identify the xpath
+        # Then check if it's a function definition in the content
+        func_def_match = re.search('^\\s*(async\\s+)?def\\s+' + re.escape(name) + '\\s*\\(', operation.content, re.MULTILINE)
+        if func_def_match:
+            # Check for "self" parameter which indicates it might be a method
+            self_param_match = re.search('def\\s+' + re.escape(name) + '\\s*\\(\\s*self\\b', operation.content, re.MULTILINE)
+            if self_param_match:
+                console.print(f'[yellow]Warning: Function "{name}" has "self" parameter but xpath doesn\'t include class name.[/yellow]')
+                console.print(f'[yellow]This might be a method. Consider using "ClassName.{name}" format for methods.[/yellow]')
+
+            operation.attributes['target_type'] = 'function'
+            operation.attributes['function_name'] = name
+            console.print(f'[green]Recognized function: {name}[/green]')
+            return True
+
+        # If not found in content, try to infer from file extension and common language patterns
+        if operation.file_extension == 'py':
+            # For Python, assume it's a function unless content looks like a class
+            if re.search('class\\s+[A-Za-z_]', operation.content, re.MULTILINE):
+                console.print(f'[yellow]Warning: Using function xpath "{name}" but content contains class definitions.[/yellow]')
+                console.print(f'[yellow]If targeting a specific class, use "ClassName" format.[/yellow]')
+
+            operation.attributes['target_type'] = 'function'
+            operation.attributes['function_name'] = name
+            console.print(f'[green]Inferred function target: {name}[/green]')
+            return True
+        elif operation.file_extension in ['js', 'jsx', 'ts', 'tsx']:
+            # For JS/TS, check content patterns to guess between component, class or function
+            if re.search('(export\\s+)?class\\s+[A-Za-z_]', operation.content, re.MULTILINE):
+                console.print(f'[yellow]Warning: Using function xpath "{name}" but content contains class definitions.[/yellow]')
+                console.print(f'[yellow]If targeting a specific class, use "ClassName" format.[/yellow]')
+
+            operation.attributes['target_type'] = 'function'
+            operation.attributes['function_name'] = name
+            console.print(f'[green]Inferred function target: {name}[/green]')
+            return True
+        else:
+            # For other languages, make a best guess based on content
+            operation.attributes['target_type'] = 'function'
+            operation.attributes['function_name'] = name
+            console.print(f'[green]Guessed function target: {name}[/green]')
+            return True
+
+    # If we got here, the xpath format wasn't recognized
     operation.add_error(f'Invalid XPath format: {operation.xpath}')
     console.print(f'[red]Invalid XPath format: {operation.xpath}[/red]')
+    console.print(f'[yellow]Use "ClassName" for classes, "ClassName.method_name" for methods, or "function_name" for functions.[/yellow]')
     return False
 
 def find_function_boundaries(content: str, function_name: str) -> Tuple[Optional[int], Optional[int], Optional[str], Optional[str]]:

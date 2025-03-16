@@ -101,22 +101,16 @@ class Pipeline:
                         operation.add_error(error_msg)
         for operation in operations:
             if not operation.has_errors():
-                console.print(f'[blue]DEBUG PIPELINE - Przed ProcessorRegistry - result.approved: {getattr(results[operation.path], "approved", False)}[/blue]')
                 ProcessorRegistry.process_operation(operation, results[operation.path])
-                console.print(f'[blue]DEBUG PIPELINE - Po ProcessorRegistry - result.approved: {getattr(results[operation.path], "approved", False)}[/blue]')
         for post_processor in self.post_processors:
             for (path, result) in results.items():
-                console.print(f'[blue]DEBUG PIPELINE - Przed post-procesorem {post_processor.name} - result.approved: {getattr(result, "approved", False)}[/blue]')
                 try:
                     post_processor.process(result)
                     for operation in result.operations:
                         operation.add_postprocessor(post_processor.name)
-                    console.print(f'[blue]DEBUG PIPELINE - Po post-procesorze {post_processor.name} - result.approved: {getattr(result, "approved", False)}[/blue]')
                 except Exception as e:
                     error_msg = f'Error in post-processor {post_processor.name}: {str(e)}'
                     console.print(f'[bold red]{error_msg}[/bold red]')
                     result.add_error(error_msg)
-        console.print(f'[blue]DEBUG PIPELINE - Końcowy rezultat przed zwrotem - Ilość wyników: {len(results)}[/blue]')
-        for (path, result) in results.items():
-            console.print(f'[blue]DEBUG PIPELINE - Końcowy wynik dla {path} - result.approved: {getattr(result, "approved", False)}[/blue]')
+
         return list(results.values())

@@ -19,27 +19,44 @@ class FileManipulatorProcessor(BaseManipulatorProcessor):
         if not manipulator:
             operation.add_error(f'No manipulator available for operation on {operation.path}')
             return
-            
-        # Check if file exists and has xpath
+
         file_exists = os.path.exists(operation.path)
-        
         if not operation.xpath:
-            # Handle entire file replacement or creation
             result.current_content = operation.content
-            console.print(f'[green]{"Created" if not file_exists else "Replaced entire content of"} {result.path}[/green]')
+            console.print(f"[green]{('Created' if not file_exists else 'Replaced entire content of')} {result.path}[/green]")
             return
-            
-        # If file doesn't exist but xpath is provided, create a scaffold file
+
+        # Handle lines:X:Y xpath format
+        if operation.attributes.get('target_type') == 'lines':
+            start_line = operation.attributes.get('start_line')
+            end_line = operation.attributes.get('end_line')
+            if start_line is None or end_line is None:
+                operation.add_error('Missing start_line or end_line attribute for lines target type')
+                return
+
+            if not file_exists:
+                console.print(f'[yellow]File {result.path} does not exist, creating a new file with content[/yellow]')
+                result.current_content = operation.content
+            else:
+                # Use preserve_formatting=True for lines xpath to maintain exact formatting
+                result.current_content = manipulator.replace_lines_range(
+                    result.current_content, 
+                    start_line, 
+                    end_line, 
+                    operation.content,
+                    preserve_formatting=True
+                )
+                console.print(f'[green]Updated lines {start_line}-{end_line} in {result.path}[/green]')
+            return
+
         if not file_exists:
             console.print(f'[yellow]File {result.path} does not exist, creating a scaffold with the specified element[/yellow]')
             target_type = operation.attributes.get('target_type')
-            
             if target_type == 'class':
                 class_name = operation.attributes.get('class_name')
                 if not class_name:
                     operation.add_error('Class name is missing')
                     return
-                # Create file with just the class
                 result.current_content = operation.content
                 console.print(f'[green]Created file {result.path} with class {class_name}[/green]')
                 return
@@ -49,8 +66,7 @@ class FileManipulatorProcessor(BaseManipulatorProcessor):
                 if not class_name or not method_name:
                     operation.add_error('Class name or method name is missing')
                     return
-                # Create file with the class containing the method
-                result.current_content = f"class {class_name}:\n{self._indent_code(operation.content)}"
+                result.current_content = f'class {class_name}:\n{self._indent_code(operation.content)}'
                 console.print(f'[green]Created file {result.path} with class {class_name} containing method {method_name}[/green]')
                 return
             elif target_type == 'function':
@@ -58,15 +74,13 @@ class FileManipulatorProcessor(BaseManipulatorProcessor):
                 if not function_name:
                     operation.add_error('Function name is missing')
                     return
-                # Create file with just the function
                 result.current_content = operation.content
                 console.print(f'[green]Created file {result.path} with function {function_name}[/green]')
                 return
             else:
                 operation.add_error(f'Unknown target type: {target_type}')
                 return
-        
-        # Regular processing for existing files
+
         target_type = operation.attributes.get('target_type')
         if target_type == 'class':
             class_name = operation.attributes.get('class_name')

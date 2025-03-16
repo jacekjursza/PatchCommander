@@ -35,70 +35,49 @@ def parse_arguments():
 
 
 def run_manual_tests(test_pattern=None, verbose=False, clean=False, no_assert=False, skip_setup=False):
-    """Run manual tests with auto-approval enabled and restore original setting after."""
-    # Store original setting
     original_setting = set_auto_approval(True)
-
     try:
-        # Clean sandbox if requested
         if clean:
             if not clean_sandbox_directory():
                 print('Failed to clean sandbox directory')
                 return 1
-
-        # Ensure sandbox directory exists
         if not ensure_sandbox_directory():
             print('Failed to create sandbox directory')
             return 1
-
-        # Run setup files if not skipped
         if not skip_setup:
             if not run_setup_files(verbose):
                 print('Failed to run setup files')
                 if not input('Continue anyway? (y/n): ').lower().startswith('y'):
                     return 1
-
-        # Find test files
         test_dir = project_root / 'patchcommander' / 'tests' / 'manual' / 'test_cases'
         if not test_dir.exists():
             print(f'Error: Test directory not found: {test_dir}')
             return 1
-
         if test_pattern:
             test_files = list(test_dir.glob(test_pattern))
         else:
             test_files = list(test_dir.glob('*.txt'))
-
         if not test_files:
             print(f"No test files found matching pattern: {test_pattern or '*.txt'}")
             return 1
-
         print(f'Found {len(test_files)} test files')
-
-        # Run tests
         success_count = 0
         failure_count = 0
-
         for test_file in sorted(test_files):
             if run_test(test_file, verbose):
                 success_count += 1
             else:
                 failure_count += 1
-
         print('\n=== Test Summary ===')
         print(f'Passed: {success_count}')
         print(f'Failed: {failure_count}')
         print(f'Total:  {success_count + failure_count}')
-
-        # Run assertion tests unless explicitly disabled
         if not no_assert:
             print('\n=== Running Assertion Tests ===')
             if not run_assertion_tests(None, verbose):
                 failure_count += 1
-
         return 0 if failure_count == 0 else 1
     finally:
-        # Restore original setting
         set_auto_approval(original_setting)
 
 if __name__ == '__main__':
